@@ -163,6 +163,7 @@ export const podcastDB = {
   },
 
   async loadPlayerState(): Promise<{
+    found: boolean;
     episode: Episode | null;
     podcast: Podcast | null;
     savedTime: number;
@@ -174,8 +175,10 @@ export const podcastDB = {
       .select('*')
       .maybeSingle();
     if (error) { console.error('loadPlayerState:', error); return null; }
-    if (!data) return null;
+    // data === null means row explicitly doesn't exist (not an error)
+    if (!data) return { found: false, episode: null, podcast: null, savedTime: 0, upNext: [], feedIndex: -1 };
     return {
+      found: true,
       episode: data.episode_data ?? null,
       podcast: data.podcast_data ?? null,
       savedTime: data.saved_time ?? 0,

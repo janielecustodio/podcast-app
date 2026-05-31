@@ -89,10 +89,24 @@ export function usePlayer() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // On mount: load from Supabase — always wins over localStorage
-  // (ensures cross-device sync)
+  // (ensures cross-device sync; if no row exists, clears stale local state)
   useEffect(() => {
     podcastDB.loadPlayerState().then((remote) => {
-      if (!remote?.episode) return;
+      // null = Supabase error, don't touch local state
+      if (remote === null) return;
+
+      // No row in Supabase = user reset or never saved → clear local state
+      if (!remote.found || !remote.episode) {
+        localStorage.removeItem(STORAGE_KEY);
+        upNextRef.current = [];
+        feedIndexRef.current = -1;
+        episodeRef.current = null;
+        setState((s) => ({ ...s, episode: null, podcast: null, upNext: [], feedIndex: -1, currentTime: 0 }));
+        audio.pause();
+        audio.src = '';
+        return;
+      }
+
       const hasLocal = !!persisted.current?.episode;
       upNextRef.current = remote.upNext;
       feedIndexRef.current = remote.feedIndex;
@@ -105,23 +119,17 @@ export function usePlayer() {
         upNext:      remote.upNext,
         feedIndex:   remote.feedIndex,
       }));
-      if (!hasLocal) {
-        // Restore audio only if localStorage didn't already do it
+
+      // Restore audio src
+      if (!hasLocal || remote.episode.audioUrl !== audio.src) {
         audio.src = remote.episode.audioUrl;
         audio.load();
         const onMeta = () => { audio.currentTime = remote.savedTime ?? 0; };
         audio.addEventListener('loadedmetadata', onMeta, { once: true });
       } else {
-        // localStorage already loaded the audio — just update position if different
-        if (remote.episode.audioUrl !== audio.src) {
-          audio.src = remote.episode.audioUrl;
-          audio.load();
-          const onMeta = () => { audio.currentTime = remote.savedTime ?? 0; };
-          audio.addEventListener('loadedmetadata', onMeta, { once: true });
-        } else {
-          audio.currentTime = remote.savedTime ?? 0;
-        }
+        audio.currentTime = remote.savedTime ?? 0;
       }
+
       // Sync localStorage with remote
       saveToStorage({
         episode:   remote.episode,
