@@ -25,11 +25,17 @@ export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    // Fallback: if session check takes > 4s, show login screen
+    const timeout = setTimeout(() => setSession((s) => s === undefined ? null : s), 4000);
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => { clearTimeout(timeout); setSession(session); })
+      .catch(() => { clearTimeout(timeout); setSession(null); });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
-    return () => subscription.unsubscribe();
+    return () => { clearTimeout(timeout); subscription.unsubscribe(); };
   }, []);
 
   // Still loading session
