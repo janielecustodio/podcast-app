@@ -1,6 +1,7 @@
 import type { Podcast, Episode } from './types';
 
 const RAW_PROXIES = [
+  'https://podcast-proxy.janielecustodio.workers.dev/?url=',
   'https://corsproxy.io/?url=',
   'https://corsproxy.org/?',
   'https://api.codetabs.com/v1/proxy?quest=',
