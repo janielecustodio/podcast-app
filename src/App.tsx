@@ -25,11 +25,19 @@ export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
 
   useEffect(() => {
-    // Fallback: if session check takes > 4s, show login screen
-    const timeout = setTimeout(() => setSession((s) => s === undefined ? null : s), 4000);
+    const timeout = setTimeout(() => setSession((s) => s === undefined ? null : s), 6000);
 
     supabase.auth.getSession()
-      .then(({ data: { session } }) => { clearTimeout(timeout); setSession(session); })
+      .then(async ({ data: { session } }) => {
+        clearTimeout(timeout);
+        if (session) {
+          setSession(session);
+        } else {
+          // No session — sign in anonymously so the app works without email
+          const { data } = await supabase.auth.signInAnonymously();
+          setSession(data.session ?? null);
+        }
+      })
       .catch(() => { clearTimeout(timeout); setSession(null); });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -38,19 +46,15 @@ export default function App() {
     return () => { clearTimeout(timeout); subscription.unsubscribe(); };
   }, []);
 
-  // Still loading session
-  if (session === undefined) {
-    return <div className="h-dvh bg-black" />;
-  }
+  if (session === undefined) return <div className="h-dvh bg-black" />;
 
-  if (!session) {
-    return <Auth />;
-  }
+  // Anonymous auth disabled or failed — fall back to email login
+  if (!session) return <Auth />;
 
-  return <AuthenticatedApp />;
+  return <AuthenticatedApp session={session} />;
 }
 
-function AuthenticatedApp() {
+function AuthenticatedApp({ session }: { session: Session }) {
   const [tab, setTab] = useState<Tab>('library');
   const [view, setView] = useState<View>({ type: 'library' });
   const [loadingPodcastId, setLoadingPodcastId] = useState<string | null>(null);
@@ -169,6 +173,7 @@ function AuthenticatedApp() {
         {view.type === 'library' && (
           <Library
             podcasts={podcasts}
+            isAnonymous={session.user.is_anonymous ?? false}
             onAddPodcast={() => setView({ type: 'add' })}
             onSelectPodcast={handleSelectPodcast}
           />
