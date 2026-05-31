@@ -86,14 +86,14 @@ export function Auth() {
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="Enter 6-digit code"
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                placeholder="Enter 8-digit code"
                 className="w-full bg-gray-900 text-white rounded-xl px-4 py-3.5 text-sm outline-none border border-gray-800 focus:border-purple-500 transition-colors placeholder-gray-600 text-center tracking-widest text-lg"
               />
               {error && <p className="text-red-400 text-sm text-center">{error}</p>}
               <button
                 type="submit"
-                disabled={verifying || otp.length < 6}
+                disabled={verifying || otp.length < 8}
                 className="w-full bg-purple-600 text-white rounded-xl py-3.5 text-sm font-semibold active:bg-purple-700 disabled:opacity-40 transition-opacity"
               >
                 {verifying ? 'Verifying…' : 'Verify code'}

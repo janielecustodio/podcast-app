@@ -111,8 +111,8 @@ export function Library({ podcasts, isAnonymous, userEmail, onAddPodcast, onSele
                     inputMode="numeric"
                     autoComplete="one-time-code"
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="Enter 6-digit code"
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                    placeholder="Enter 8-digit code"
                     className="w-full bg-gray-800 text-white rounded-xl px-4 py-3 text-sm outline-none border border-gray-700 focus:border-purple-500 placeholder-gray-600 text-center tracking-widest text-lg"
                   />
                   {error && <p className="text-red-400 text-xs">{error}</p>}
@@ -126,7 +126,7 @@ export function Library({ podcasts, isAnonymous, userEmail, onAddPodcast, onSele
                     </button>
                     <button
                       type="submit"
-                      disabled={verifying || otp.length < 6}
+                      disabled={verifying || otp.length < 8}
                       className="flex-1 py-3 rounded-xl bg-purple-600 text-white font-semibold text-sm disabled:opacity-40"
                     >
                       {verifying ? 'Verifying…' : 'Verify code'}
