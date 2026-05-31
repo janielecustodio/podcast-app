@@ -49,15 +49,13 @@ export function AudioPlayer({
   const remaining = duration - currentTime;
 
   if (isExpanded) {
-    const upNext = queue.slice(queueIndex + 1);
-
     return (
       <div
         className="fixed inset-0 bg-black z-50 flex flex-col"
         style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         {/* ── Player controls (fixed, non-scrolling) ── */}
-        <div className="flex-shrink-0 flex flex-col items-center px-6 pt-12 pb-6">
+        <div className="flex-shrink-0 flex flex-col items-center px-6 pt-12 pb-5">
           <button
             onClick={onToggleExpanded}
             className="absolute top-4 left-4 p-2"
@@ -69,13 +67,13 @@ export function AudioPlayer({
           <img
             src={artworkUrl}
             alt={episode.title}
-            className="w-48 h-48 rounded-2xl object-cover mb-5 shadow-2xl"
+            className="w-40 h-40 rounded-2xl object-cover mb-4 shadow-2xl"
           />
 
-          <h2 className="text-white font-bold text-lg mb-0.5 text-center leading-tight line-clamp-2 w-full max-w-sm">
+          <h2 className="text-white font-bold text-base mb-0.5 text-center leading-tight line-clamp-2 w-full max-w-sm">
             {episode.title}
           </h2>
-          <p className="text-gray-400 text-sm text-center mb-5">{podcast.title}</p>
+          <p className="text-gray-400 text-sm text-center mb-4">{podcast.title}</p>
 
           {/* Seek bar */}
           <div className="w-full max-w-sm">
@@ -88,7 +86,7 @@ export function AudioPlayer({
               onChange={(e) => onSeek(Number(e.target.value))}
               className="w-full mb-1"
             />
-            <div className="flex justify-between text-gray-500 text-xs mb-5">
+            <div className="flex justify-between text-gray-500 text-xs mb-4">
               <span>{formatTime(currentTime)}</span>
               <span>-{formatTime(remaining > 0 ? remaining : 0)}</span>
             </div>
@@ -101,7 +99,6 @@ export function AudioPlayer({
               >
                 <SkipBack size={26} />
               </button>
-
               <button
                 onClick={() => onSkip(-15)}
                 className="text-white opacity-80 active:opacity-100 flex flex-col items-center gap-1"
@@ -109,7 +106,6 @@ export function AudioPlayer({
                 <RotateCcw size={26} />
                 <span className="text-xs text-gray-500">15</span>
               </button>
-
               <button
                 onClick={onTogglePlay}
                 className="w-16 h-16 rounded-full bg-white flex items-center justify-center active:bg-gray-200"
@@ -120,7 +116,6 @@ export function AudioPlayer({
                   <Play size={28} className="text-black fill-black ml-1" />
                 )}
               </button>
-
               <button
                 onClick={() => onSkip(30)}
                 className="text-white opacity-80 active:opacity-100 flex flex-col items-center gap-1"
@@ -128,7 +123,6 @@ export function AudioPlayer({
                 <RotateCw size={26} />
                 <span className="text-xs text-gray-500">30</span>
               </button>
-
               <button
                 onClick={onPlayNext}
                 className={hasNext ? 'text-white opacity-80 active:opacity-100' : 'text-gray-700'}
@@ -139,39 +133,44 @@ export function AudioPlayer({
           </div>
         </div>
 
-        {/* ── Queue (scrollable) ── */}
-        {upNext.length > 0 && (
-          <div className="flex-1 overflow-y-auto border-t border-gray-900">
-            <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider px-4 pt-3 pb-2">
-              Up Next
-            </p>
-            {upNext.map((item, i) => {
-              const globalIndex = queueIndex + 1 + i;
+        {/* ── Queue (always visible, scrollable) ── */}
+        <div className="flex-1 overflow-y-auto border-t border-gray-900">
+          <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider px-4 pt-3 pb-1">
+            Queue · {queue.length} episodes
+          </p>
+          {queue.length === 0 ? (
+            <p className="text-gray-700 text-sm text-center py-6">Queue is empty</p>
+          ) : (
+            queue.map((item, index) => {
+              const isCurrent = index === queueIndex;
+              const isPast = index < queueIndex;
               const art = item.episode.artworkUrl || item.podcast.artworkUrl;
-              const isUpNextImmediate = i === 0;
               return (
                 <button
-                  key={`${item.episode.id}-${globalIndex}`}
-                  onClick={() => onPlayQueueItem(globalIndex)}
-                  className="w-full flex items-center gap-3 px-4 py-3 border-b border-gray-900 active:bg-gray-900 text-left"
+                  key={`${item.episode.id}-${index}`}
+                  onClick={() => onPlayQueueItem(index)}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 border-b border-gray-900 active:bg-gray-900 text-left ${isCurrent ? 'bg-gray-950' : ''}`}
                 >
-                  <img src={art} alt="" className="w-11 h-11 rounded-xl object-cover flex-shrink-0" />
+                  <img
+                    src={art}
+                    alt=""
+                    className={`w-10 h-10 rounded-xl object-cover flex-shrink-0 ${isPast ? 'opacity-30' : ''}`}
+                  />
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium truncate ${isUpNextImmediate ? 'text-white' : 'text-gray-400'}`}>
+                    <p className={`text-sm font-medium truncate ${isCurrent ? 'text-purple-400' : isPast ? 'text-gray-600' : 'text-white'}`}>
                       {item.episode.title}
                     </p>
                     <p className="text-gray-600 text-xs truncate">{item.podcast.title}</p>
                   </div>
-                  {item.episode.duration > 0 && (
-                    <span className="text-gray-700 text-xs flex-shrink-0">
-                      {formatDuration(item.episode.duration)}
-                    </span>
+                  {isCurrent && <span className="text-purple-400 text-xs flex-shrink-0">▶</span>}
+                  {!isCurrent && item.episode.duration > 0 && (
+                    <span className="text-gray-700 text-xs flex-shrink-0">{formatDuration(item.episode.duration)}</span>
                   )}
                 </button>
               );
-            })}
-          </div>
-        )}
+            })
+          )}
+        </div>
       </div>
     );
   }
