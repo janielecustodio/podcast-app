@@ -26,6 +26,11 @@ export interface PlaybackProgress {
   lastPlayedAt: number;
 }
 
+export interface QueueItem {
+  episode: Episode;
+  podcast: Podcast;
+}
+
 export interface PlayerState {
   episode: Episode | null;
   podcast: Podcast | null;
@@ -33,4 +38,6 @@ export interface PlayerState {
   currentTime: number;
   duration: number;
   isExpanded: boolean;
+  queue: QueueItem[];
+  queueIndex: number;
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Play, Pause } from 'lucide-react';
+import { Play, Pause, ListPlus } from 'lucide-react';
 import type { Episode, Podcast, PlaybackProgress } from '../types';
 import { podcastDB } from '../db';
 
@@ -28,9 +28,10 @@ interface Props {
   currentEpisodeId: string | null;
   isPlaying: boolean;
   onPlayEpisode: (episode: Episode, podcast: Podcast) => void;
+  onAddToQueue: (episode: Episode, podcast: Podcast) => void;
 }
 
-export function EpisodeFeed({ episodes, podcasts, currentEpisodeId, isPlaying, onPlayEpisode }: Props) {
+export function EpisodeFeed({ episodes, podcasts, currentEpisodeId, isPlaying, onPlayEpisode, onAddToQueue }: Props) {
   const [progress, setProgress] = useState<Record<string, PlaybackProgress>>({});
   const podcastMap = Object.fromEntries(podcasts.map((p) => [p.id, p]));
 
@@ -106,22 +107,29 @@ export function EpisodeFeed({ episodes, podcasts, currentEpisodeId, isPlaying, o
                   </div>
                 )}
               </div>
-              <button
-                onClick={() => onPlayEpisode(episode, podcast)}
-                className="flex-shrink-0 self-center ml-1"
-              >
-                <div
-                  className={`w-9 h-9 rounded-full flex items-center justify-center ${
-                    isCurrentlyPlaying ? 'bg-purple-600' : 'bg-gray-800'
-                  }`}
+
+              <div className="flex flex-col items-center gap-2 flex-shrink-0 self-center ml-1">
+                <button onClick={() => onPlayEpisode(episode, podcast)}>
+                  <div
+                    className={`w-9 h-9 rounded-full flex items-center justify-center ${
+                      isCurrentlyPlaying ? 'bg-purple-600' : 'bg-gray-800'
+                    }`}
+                  >
+                    {isCurrentlyPlaying ? (
+                      <Pause size={15} className="text-white fill-white" />
+                    ) : (
+                      <Play size={15} className="text-white fill-white ml-0.5" />
+                    )}
+                  </div>
+                </button>
+                <button
+                  onClick={() => onAddToQueue(episode, podcast)}
+                  className="text-gray-600 active:text-purple-400"
+                  title="Add to queue"
                 >
-                  {isCurrentlyPlaying ? (
-                    <Pause size={15} className="text-white fill-white" />
-                  ) : (
-                    <Play size={15} className="text-white fill-white ml-0.5" />
-                  )}
-                </div>
-              </button>
+                  <ListPlus size={16} />
+                </button>
+              </div>
             </div>
           </div>
         );

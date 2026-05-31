@@ -1,4 +1,4 @@
-import { Play, Pause, SkipBack, SkipForward, ChevronDown } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, ChevronDown, RotateCcw, RotateCw } from 'lucide-react';
 import type { Episode, Podcast } from '../types';
 
 function formatTime(seconds: number): string {
@@ -17,15 +17,20 @@ interface Props {
   currentTime: number;
   duration: number;
   isExpanded: boolean;
+  hasNext: boolean;
+  hasPrevious: boolean;
   onTogglePlay: () => void;
   onSeek: (time: number) => void;
   onSkip: (seconds: number) => void;
   onToggleExpanded: () => void;
+  onPlayNext: () => void;
+  onPlayPrevious: () => void;
 }
 
 export function AudioPlayer({
   episode, podcast, isPlaying, currentTime, duration,
-  isExpanded, onTogglePlay, onSeek, onSkip, onToggleExpanded,
+  isExpanded, hasNext, hasPrevious,
+  onTogglePlay, onSeek, onSkip, onToggleExpanded, onPlayNext, onPlayPrevious,
 }: Props) {
   const progress = duration > 0 ? currentTime / duration : 0;
   const artworkUrl = episode.artworkUrl || podcast.artworkUrl;
@@ -33,8 +38,10 @@ export function AudioPlayer({
 
   if (isExpanded) {
     return (
-      <div className="fixed inset-0 bg-black z-50 flex flex-col items-center px-6 pb-10 pt-12 overflow-y-auto">
-        <button onClick={onToggleExpanded} className="absolute top-4 left-4 p-2 rounded-full">
+      <div className="fixed inset-0 bg-black z-50 flex flex-col items-center px-6 overflow-y-auto"
+        style={{ paddingTop: 'max(3rem, env(safe-area-inset-top))', paddingBottom: 'max(2.5rem, env(safe-area-inset-bottom))' }}>
+        <button onClick={onToggleExpanded} className="absolute top-4 left-4 p-2 rounded-full"
+          style={{ top: 'max(1rem, env(safe-area-inset-top))' }}>
           <ChevronDown size={28} className="text-white" />
         </button>
 
@@ -65,13 +72,20 @@ export function AudioPlayer({
             <span>-{formatTime(remaining > 0 ? remaining : 0)}</span>
           </div>
 
-          {/* Controls */}
-          <div className="flex items-center justify-center gap-12">
+          {/* Controls: [⏮ prev] [↩ 15s] [▶] [30s ↪] [next ⏭] */}
+          <div className="flex items-center justify-center gap-7">
+            <button
+              onClick={onPlayPrevious}
+              className={`flex flex-col items-center gap-1 ${hasPrevious ? 'text-white opacity-80 active:opacity-100' : 'text-gray-700'}`}
+            >
+              <SkipBack size={26} />
+            </button>
+
             <button
               onClick={() => onSkip(-15)}
               className="text-white opacity-80 active:opacity-100 flex flex-col items-center gap-1"
             >
-              <SkipBack size={30} />
+              <RotateCcw size={26} />
               <span className="text-xs text-gray-500">15</span>
             </button>
 
@@ -90,8 +104,15 @@ export function AudioPlayer({
               onClick={() => onSkip(30)}
               className="text-white opacity-80 active:opacity-100 flex flex-col items-center gap-1"
             >
-              <SkipForward size={30} />
+              <RotateCw size={26} />
               <span className="text-xs text-gray-500">30</span>
+            </button>
+
+            <button
+              onClick={onPlayNext}
+              className={`flex flex-col items-center gap-1 ${hasNext ? 'text-white opacity-80 active:opacity-100' : 'text-gray-700'}`}
+            >
+              <SkipForward size={26} />
             </button>
           </div>
         </div>
@@ -105,7 +126,6 @@ export function AudioPlayer({
       className="bg-gray-950 border-t border-gray-800 cursor-pointer active:bg-gray-900"
       onClick={onToggleExpanded}
     >
-      {/* Thin progress strip */}
       <div className="h-0.5 bg-gray-800">
         <div
           className="h-full bg-purple-500 transition-all duration-1000"
@@ -134,8 +154,9 @@ export function AudioPlayer({
           )}
         </button>
         <button
-          onClick={(e) => { e.stopPropagation(); onSkip(30); }}
-          className="p-2 active:opacity-70"
+          onClick={(e) => { e.stopPropagation(); onPlayNext(); }}
+          disabled={!hasNext}
+          className={`p-2 ${hasNext ? 'active:opacity-70' : 'opacity-30'}`}
         >
           <SkipForward size={22} className="text-white" />
         </button>

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, RefreshCw, Play, Pause, Trash2 } from 'lucide-react';
+import { ChevronLeft, RefreshCw, Play, Pause, Trash2, ListPlus } from 'lucide-react';
 import type { Episode, Podcast, PlaybackProgress } from '../types';
 import { podcastDB } from '../db';
+
+const DEFAULT_LIMIT = 30;
 
 function formatDuration(seconds: number): string {
   if (!seconds) return '';
@@ -25,16 +27,18 @@ interface Props {
   loading: boolean;
   onBack: () => void;
   onPlayEpisode: (episode: Episode) => void;
+  onAddToQueue: (episode: Episode) => void;
   onRefresh: () => void;
   onRemove: (podcast: Podcast) => void;
 }
 
 export function PodcastDetail({
   podcast, episodes, currentEpisodeId, isPlaying,
-  loading, onBack, onPlayEpisode, onRefresh, onRemove,
+  loading, onBack, onPlayEpisode, onAddToQueue, onRefresh, onRemove,
 }: Props) {
   const [progress, setProgress] = useState<Record<string, PlaybackProgress>>({});
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     if (episodes.length === 0) return;
@@ -44,6 +48,9 @@ export function PodcastDetail({
       setProgress(map);
     });
   }, [episodes]);
+
+  const visibleEpisodes = showAll ? episodes : episodes.slice(0, DEFAULT_LIMIT);
+  const hiddenCount = episodes.length - DEFAULT_LIMIT;
 
   return (
     <div className="flex flex-col h-full">
@@ -100,7 +107,7 @@ export function PodcastDetail({
           </div>
         )}
 
-        {episodes.map((episode) => {
+        {visibleEpisodes.map((episode) => {
           const p = progress[episode.id];
           const isCurrent = currentEpisodeId === episode.id;
           const isCurrentlyPlaying = isCurrent && isPlaying;
@@ -158,10 +165,30 @@ export function PodcastDetail({
                     </div>
                   )}
                 </div>
+
+                <button
+                  onClick={() => onAddToQueue(episode)}
+                  className="flex-shrink-0 self-center p-1 text-gray-600 active:text-purple-400"
+                  title="Add to queue"
+                >
+                  <ListPlus size={18} />
+                </button>
               </div>
             </div>
           );
         })}
+
+        {/* Show more / show less */}
+        {episodes.length > DEFAULT_LIMIT && (
+          <button
+            onClick={() => setShowAll((v) => !v)}
+            className="w-full py-4 text-purple-400 text-sm font-medium active:opacity-70"
+          >
+            {showAll
+              ? 'Show fewer episodes'
+              : `Show ${hiddenCount} more episode${hiddenCount !== 1 ? 's' : ''}`}
+          </button>
+        )}
       </div>
 
       {/* Remove confirmation dialog */}
