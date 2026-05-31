@@ -88,41 +88,49 @@ export function usePlayer() {
     audio.addEventListener('loadedmetadata', onMeta, { once: true });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // On mount: load from Supabase and apply if newer than localStorage
-  // (handles new device / different session)
+  // On mount: load from Supabase — always wins over localStorage
+  // (ensures cross-device sync)
   useEffect(() => {
     podcastDB.loadPlayerState().then((remote) => {
       if (!remote?.episode) return;
-      // Only apply if we have no local state, or remote has an upNext that local doesn't
       const hasLocal = !!persisted.current?.episode;
-      if (!hasLocal || remote.upNext.length > 0) {
-        upNextRef.current = remote.upNext;
-        feedIndexRef.current = remote.feedIndex;
-        setState((s) => ({
-          ...s,
-          episode:     remote.episode,
-          podcast:     remote.podcast,
-          currentTime: remote.savedTime,
-          upNext:      remote.upNext,
-          feedIndex:   remote.feedIndex,
-        }));
-        if (remote.episode && !hasLocal) {
-          // Only restore audio if we didn't already do it from localStorage
+      upNextRef.current = remote.upNext;
+      feedIndexRef.current = remote.feedIndex;
+      episodeRef.current = remote.episode;
+      setState((s) => ({
+        ...s,
+        episode:     remote.episode,
+        podcast:     remote.podcast,
+        currentTime: remote.savedTime,
+        upNext:      remote.upNext,
+        feedIndex:   remote.feedIndex,
+      }));
+      if (!hasLocal) {
+        // Restore audio only if localStorage didn't already do it
+        audio.src = remote.episode.audioUrl;
+        audio.load();
+        const onMeta = () => { audio.currentTime = remote.savedTime ?? 0; };
+        audio.addEventListener('loadedmetadata', onMeta, { once: true });
+      } else {
+        // localStorage already loaded the audio — just update position if different
+        if (remote.episode.audioUrl !== audio.src) {
           audio.src = remote.episode.audioUrl;
           audio.load();
           const onMeta = () => { audio.currentTime = remote.savedTime ?? 0; };
           audio.addEventListener('loadedmetadata', onMeta, { once: true });
+        } else {
+          audio.currentTime = remote.savedTime ?? 0;
         }
-        // Update localStorage with remote state
-        saveToStorage({
-          episode:   remote.episode!,
-          podcast:   remote.podcast!,
-          savedTime: remote.savedTime,
-          upNext:    remote.upNext,
-          feed:      feedRef.current,
-          feedIndex: remote.feedIndex,
-        });
       }
+      // Sync localStorage with remote
+      saveToStorage({
+        episode:   remote.episode,
+        podcast:   remote.podcast!,
+        savedTime: remote.savedTime,
+        upNext:    remote.upNext,
+        feed:      feedRef.current,
+        feedIndex: remote.feedIndex,
+      });
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
