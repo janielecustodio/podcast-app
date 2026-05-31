@@ -3,23 +3,88 @@ import type { Episode, Podcast, PlayerState, QueueItem } from '../types';
 import { podcastDB } from '../db';
 import { audio } from '../audio';
 
+const STORAGE_KEY = 'podcast-player-v1';
+
+interface PersistedPlayer {
+  episode: Episode;
+  podcast: Podcast;
+  savedTime: number;
+  upNext: QueueItem[];
+  feed: QueueItem[];
+  feedIndex: number;
+}
+
+// Strip long descriptions before storing to stay well under the 5 MB limit
+function slim(items: QueueItem[]): QueueItem[] {
+  return items.map((q) => ({
+    episode: { ...q.episode, description: '' },
+    podcast: q.podcast,
+  }));
+}
+
+function saveToStorage(p: PersistedPlayer) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      ...p,
+      upNext: slim(p.upNext),
+      feed: slim(p.feed),
+    }));
+  } catch { /* quota exceeded — ignore */ }
+}
+
+function loadFromStorage(): PersistedPlayer | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as PersistedPlayer) : null;
+  } catch { return null; }
+}
+
 export function usePlayer() {
+  // Restore from localStorage on first render
+  const persisted = useRef<PersistedPlayer | null>(null);
+  if (persisted.current === null && localStorage.getItem(STORAGE_KEY)) {
+    persisted.current = loadFromStorage();
+  }
+  const p = persisted.current;
+
   const [state, setState] = useState<PlayerState>({
-    episode: null,
-    podcast: null,
-    isPlaying: false,
-    currentTime: 0,
-    duration: 0,
+    episode:    p?.episode    ?? null,
+    podcast:    p?.podcast    ?? null,
+    isPlaying:  false,
+    currentTime: p?.savedTime ?? 0,
+    duration:   0,
     isExpanded: false,
-    upNext: [],
-    feed: [],
-    feedIndex: -1,
+    upNext:     p?.upNext     ?? [],
+    feed:       p?.feed       ?? [],
+    feedIndex:  p?.feedIndex  ?? -1,
   });
 
-  const episodeRef = useRef<Episode | null>(null);
-  const upNextRef = useRef<QueueItem[]>([]);
-  const feedRef = useRef<QueueItem[]>([]);
-  const feedIndexRef = useRef(-1);
+  const episodeRef   = useRef<Episode | null>(p?.episode ?? null);
+  const upNextRef    = useRef<QueueItem[]>(p?.upNext ?? []);
+  const feedRef      = useRef<QueueItem[]>(p?.feed ?? []);
+  const feedIndexRef = useRef<number>(p?.feedIndex ?? -1);
+
+  // Restore audio src on mount (don't auto-play)
+  useEffect(() => {
+    if (!p?.episode) return;
+    audio.src = p.episode.audioUrl;
+    audio.load();
+    const onMeta = () => { audio.currentTime = p.savedTime ?? 0; };
+    audio.addEventListener('loadedmetadata', onMeta, { once: true });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist queue/feed/episode whenever they change (not currentTime — too frequent)
+  useEffect(() => {
+    if (!state.episode) return;
+    saveToStorage({
+      episode:   state.episode,
+      podcast:   state.podcast!,
+      savedTime: state.currentTime,
+      upNext:    state.upNext,
+      feed:      state.feed,
+      feedIndex: state.feedIndex,
+    });
+  }, [state.episode, state.podcast, state.upNext, state.feed, state.feedIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Play an episode immediately (does not touch upNext or feed structure)
   const playEpisode = useCallback(async (episode: Episode, podcast: Podcast) => {
@@ -61,6 +126,17 @@ export function usePlayer() {
           completed: false,
           lastPlayedAt: Date.now(),
         });
+        // Save currentTime to localStorage on pause
+        if (episodeRef.current) {
+          try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) {
+              const stored = JSON.parse(raw) as PersistedPlayer;
+              stored.savedTime = audio.currentTime;
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+            }
+          } catch {}
+        }
       }
     };
     const onEnded = () => {
@@ -120,6 +196,15 @@ export function usePlayer() {
           completed: false,
           lastPlayedAt: Date.now(),
         });
+        // Also persist currentTime to localStorage every 15s while playing
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            const stored = JSON.parse(raw) as PersistedPlayer;
+            stored.savedTime = audio.currentTime;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+          }
+        } catch {}
       }
     }, 15_000);
     return () => clearInterval(id);
@@ -155,7 +240,6 @@ export function usePlayer() {
     const newUpNext = upNextRef.current.filter((_, i) => i !== index);
     upNextRef.current = newUpNext;
     setState((s) => ({ ...s, upNext: newUpNext }));
-    // Try to find the episode in feed and sync feedIndex
     const feedIdx = feedRef.current.findIndex((q) => q.episode.id === item.episode.id);
     if (feedIdx >= 0) {
       feedIndexRef.current = feedIdx;
@@ -205,14 +289,12 @@ export function usePlayer() {
     }
   }, []);
 
-  // Add to end of personal queue
   const addToQueue = useCallback((episode: Episode, podcast: Podcast) => {
     const newUpNext = [...upNextRef.current, { episode, podcast }];
     upNextRef.current = newUpNext;
     setState((s) => ({ ...s, upNext: newUpNext }));
   }, []);
 
-  // Add to front of personal queue (play next)
   const addToQueueFirst = useCallback((episode: Episode, podcast: Podcast) => {
     const newUpNext = [{ episode, podcast }, ...upNextRef.current];
     upNextRef.current = newUpNext;
@@ -233,7 +315,6 @@ export function usePlayer() {
     setState((s) => ({ ...s, upNext: newUpNext }));
   }, []);
 
-  // Set the feed without changing playback or upNext
   const setFeed = useCallback((items: QueueItem[]) => {
     feedRef.current = items;
     setState((s) => ({ ...s, feed: items }));
