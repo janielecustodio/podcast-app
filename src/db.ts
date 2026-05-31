@@ -137,4 +137,50 @@ export const podcastDB = {
     if (error) { console.error('getAllProgress:', error); return []; }
     return (data ?? []).map(rowToProgress);
   },
+
+  // Player state — Supabase (cross-device sync)
+  // We store episode, podcast, savedTime, upNext, feedIndex.
+  // The feed itself is NOT stored — it's rebuilt from subscriptions on load.
+  async savePlayerState(state: {
+    episode: Episode | null;
+    podcast: Podcast | null;
+    savedTime: number;
+    upNext: Array<{ episode: Omit<Episode, 'description'>; podcast: Podcast }>;
+    feedIndex: number;
+  }): Promise<void> {
+    const userId = await getUserId();
+    if (!userId) return;
+    const { error } = await supabase.from('player_state').upsert({
+      user_id: userId,
+      episode_data: state.episode,
+      podcast_data: state.podcast,
+      saved_time: state.savedTime,
+      up_next: state.upNext,
+      feed_index: state.feedIndex,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) console.error('savePlayerState:', error);
+  },
+
+  async loadPlayerState(): Promise<{
+    episode: Episode | null;
+    podcast: Podcast | null;
+    savedTime: number;
+    upNext: Array<{ episode: Episode; podcast: Podcast }>;
+    feedIndex: number;
+  } | null> {
+    const { data, error } = await supabase
+      .from('player_state')
+      .select('*')
+      .maybeSingle();
+    if (error) { console.error('loadPlayerState:', error); return null; }
+    if (!data) return null;
+    return {
+      episode: data.episode_data ?? null,
+      podcast: data.podcast_data ?? null,
+      savedTime: data.saved_time ?? 0,
+      upNext: data.up_next ?? [],
+      feedIndex: data.feed_index ?? -1,
+    };
+  },
 };
