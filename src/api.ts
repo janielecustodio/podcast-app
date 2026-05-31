@@ -1,6 +1,23 @@
 import type { Podcast, Episode } from './types';
 
-const CORS_PROXY = 'https://corsproxy.io/?url=';
+const CORS_PROXIES = [
+  'https://corsproxy.io/?url=',
+  'https://api.allorigins.win/raw?url=',
+  'https://api.codetabs.com/v1/proxy?quest=',
+];
+
+async function fetchFeed(feedUrl: string): Promise<string> {
+  const encoded = encodeURIComponent(feedUrl);
+  for (const proxy of CORS_PROXIES) {
+    try {
+      const res = await fetch(proxy + encoded);
+      if (res.ok) return res.text();
+    } catch {
+      // try next proxy
+    }
+  }
+  throw new Error('All proxies failed to fetch feed');
+}
 
 export async function searchPodcasts(query: string): Promise<Podcast[]> {
   const url = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=podcast&entity=podcast&limit=15`;
@@ -47,10 +64,7 @@ function getItunesAttr(el: Element, localName: string, attr: string): string | n
 }
 
 export async function fetchEpisodes(podcast: Podcast): Promise<Episode[]> {
-  const proxyUrl = CORS_PROXY + encodeURIComponent(podcast.feedUrl);
-  const res = await fetch(proxyUrl);
-  if (!res.ok) throw new Error(`Failed to fetch feed: ${res.status}`);
-  const text = await res.text();
+  const text = await fetchFeed(podcast.feedUrl);
 
   const parser = new DOMParser();
   const doc = parser.parseFromString(text, 'text/xml');
