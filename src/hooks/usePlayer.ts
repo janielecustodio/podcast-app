@@ -212,8 +212,23 @@ export function usePlayer() {
     setState((s) => ({ ...s, upNext: newUpNext }));
   }, []);
 
+  // Add to front of personal queue (play next)
+  const addToQueueFirst = useCallback((episode: Episode, podcast: Podcast) => {
+    const newUpNext = [{ episode, podcast }, ...upNextRef.current];
+    upNextRef.current = newUpNext;
+    setState((s) => ({ ...s, upNext: newUpNext }));
+  }, []);
+
   const removeFromQueue = useCallback((index: number) => {
     const newUpNext = upNextRef.current.filter((_, i) => i !== index);
+    upNextRef.current = newUpNext;
+    setState((s) => ({ ...s, upNext: newUpNext }));
+  }, []);
+
+  const reorderUpNext = useCallback((fromIndex: number, toIndex: number) => {
+    const newUpNext = [...upNextRef.current];
+    const [moved] = newUpNext.splice(fromIndex, 1);
+    newUpNext.splice(toIndex, 0, moved);
     upNextRef.current = newUpNext;
     setState((s) => ({ ...s, upNext: newUpNext }));
   }, []);
@@ -254,7 +269,9 @@ export function usePlayer() {
     playNext,
     playPrevious,
     addToQueue,
+    addToQueueFirst,
     removeFromQueue,
+    reorderUpNext,
     setFeed,
     togglePlay,
     seek,

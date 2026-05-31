@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
-import { BookOpen, Radio, ListMusic } from 'lucide-react';
+import { BookOpen, ListMusic } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import type { Podcast, Episode, QueueItem } from './types';
+// EpisodeFeed removed — feed is now shown inside QueueView
 import { supabase } from './supabase';
 import { Auth } from './components/Auth';
 import { usePodcasts } from './hooks/usePodcasts';
@@ -9,14 +10,12 @@ import { usePlayer } from './hooks/usePlayer';
 import { Library } from './components/Library';
 import { AddPodcast } from './components/AddPodcast';
 import { PodcastDetail } from './components/PodcastDetail';
-import { EpisodeFeed } from './components/EpisodeFeed';
 import { AudioPlayer } from './components/AudioPlayer';
 import { QueueView } from './components/QueueView';
 
-type Tab = 'library' | 'feed' | 'queue';
+type Tab = 'library' | 'queue';
 type View =
   | { type: 'library' }
-  | { type: 'feed' }
   | { type: 'queue' }
   | { type: 'podcast'; podcast: Podcast }
   | { type: 'add' };
@@ -67,7 +66,9 @@ function AuthenticatedApp({ session }: { session: Session }) {
     playNext,
     playPrevious,
     addToQueue,
+    addToQueueFirst,
     removeFromQueue,
+    reorderUpNext,
     setFeed,
     togglePlay,
     seek,
@@ -92,12 +93,6 @@ function AuthenticatedApp({ session }: { session: Session }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allEpisodes.length]);
 
-  const handlePlayFromFeed = useCallback((episode: Episode, podcast: Podcast) => {
-    const items = buildAllEpisodeItems();
-    const index = items.findIndex((item) => item.episode.id === episode.id);
-    playFromFeed(items, Math.max(0, index));
-  }, [buildAllEpisodeItems, playFromFeed]);
-
   const handlePlayFromPodcast = useCallback((episode: Episode) => {
     if (view.type !== 'podcast') return;
     const pod = view.podcast;
@@ -107,11 +102,12 @@ function AuthenticatedApp({ session }: { session: Session }) {
     playFromFeed(items, Math.max(0, index));
   }, [view, episodesByPodcast, playFromFeed]);
 
-  const handleAddToQueueFromFeed = useCallback((episode: Episode, podcast: Podcast) => {
-    addToQueue(episode, podcast);
-  }, [addToQueue]);
+  const handleAddToQueueFirstFromPodcast = useCallback((episode: Episode) => {
+    if (view.type !== 'podcast') return;
+    addToQueueFirst(episode, view.podcast);
+  }, [view, addToQueueFirst]);
 
-  const handleAddToQueueFromPodcast = useCallback((episode: Episode) => {
+  const handleAddToQueueLastFromPodcast = useCallback((episode: Episode) => {
     if (view.type !== 'podcast') return;
     addToQueue(episode, view.podcast);
   }, [view, addToQueue]);
@@ -164,17 +160,6 @@ function AuthenticatedApp({ session }: { session: Session }) {
           />
         )}
 
-        {view.type === 'feed' && (
-          <EpisodeFeed
-            episodes={allEpisodes}
-            podcasts={podcasts}
-            currentEpisodeId={player.episode?.id ?? null}
-            isPlaying={player.isPlaying}
-            onPlayEpisode={handlePlayFromFeed}
-            onAddToQueue={handleAddToQueueFromFeed}
-          />
-        )}
-
         {view.type === 'queue' && (
           <QueueView
             upNext={player.upNext}
@@ -184,6 +169,9 @@ function AuthenticatedApp({ session }: { session: Session }) {
             onPlayUpNextItem={playUpNextItem}
             onPlayFeedItem={playFeedItem}
             onRemoveFromUpNext={removeFromQueue}
+            onReorderUpNext={reorderUpNext}
+            onAddToQueueFirst={(item) => addToQueueFirst(item.episode, item.podcast)}
+            onAddToQueueLast={(item) => addToQueue(item.episode, item.podcast)}
           />
         )}
 
@@ -196,7 +184,8 @@ function AuthenticatedApp({ session }: { session: Session }) {
             loading={loadingPodcastId === view.podcast.id}
             onBack={() => setView({ type: tab })}
             onPlayEpisode={handlePlayFromPodcast}
-            onAddToQueue={handleAddToQueueFromPodcast}
+            onAddToQueueFirst={handleAddToQueueFirstFromPodcast}
+            onAddToQueueLast={handleAddToQueueLastFromPodcast}
             onRefresh={() => handleRefresh(view.podcast)}
             onRemove={(podcast) => removePodcast(podcast.id)}
           />
@@ -242,15 +231,6 @@ function AuthenticatedApp({ session }: { session: Session }) {
           >
             <BookOpen size={22} />
             <span className="text-xs font-medium">Library</span>
-          </button>
-          <button
-            onClick={() => switchTab('feed')}
-            className={`flex-1 flex flex-col items-center py-3 gap-1 transition-colors ${
-              tab === 'feed' ? 'text-purple-400' : 'text-gray-600'
-            }`}
-          >
-            <Radio size={22} />
-            <span className="text-xs font-medium">Feed</span>
           </button>
           <button
             onClick={() => switchTab('queue')}
