@@ -1,17 +1,19 @@
 import { useState } from 'react';
-import { Plus, LogOut, RefreshCw } from 'lucide-react';
+import { Plus, LogOut, UserPlus } from 'lucide-react';
 import type { Podcast } from '../types';
 import { supabase } from '../supabase';
 
 interface Props {
   podcasts: Podcast[];
   isAnonymous: boolean;
+  userEmail?: string;
   onAddPodcast: () => void;
   onSelectPodcast: (podcast: Podcast) => void;
 }
 
-export function Library({ podcasts, isAnonymous, onAddPodcast, onSelectPodcast }: Props) {
+export function Library({ podcasts, isAnonymous, userEmail, onAddPodcast, onSelectPodcast }: Props) {
   const [showSync, setShowSync] = useState(false);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -25,7 +27,6 @@ export function Library({ podcasts, isAnonymous, onAddPodcast, onSelectPodcast }
     const { error } = await supabase.auth.updateUser({ email }, { emailRedirectTo: redirectTo });
     if (error) {
       if (error.message.toLowerCase().includes('already')) {
-        // Email already has an account — send a sign-in magic link instead
         const { error: otpError } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo } });
         if (otpError) {
           setError(otpError.message);
@@ -44,20 +45,25 @@ export function Library({ podcasts, isAnonymous, onAddPodcast, onSelectPodcast }
   return (
     <div className="p-4">
       <div className="flex items-center justify-between mb-4 pt-2">
-        <h1 className="text-2xl font-bold text-white">Library</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-white">Library</h1>
+          {!isAnonymous && userEmail && (
+            <p className="text-gray-600 text-xs mt-0.5 truncate max-w-[200px]">{userEmail}</p>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {isAnonymous ? (
             <button
               onClick={() => setShowSync(true)}
               className="flex items-center gap-1.5 px-3 h-9 rounded-full bg-gray-900 active:bg-gray-800 text-gray-400 text-xs font-medium"
-              title="Sync across devices"
+              title="Connect your account"
             >
-              <RefreshCw size={13} />
-              Sync
+              <UserPlus size={13} />
+              Connect account
             </button>
           ) : (
             <button
-              onClick={() => supabase.auth.signOut()}
+              onClick={() => setShowSignOutConfirm(true)}
               className="w-9 h-9 rounded-full bg-gray-900 flex items-center justify-center active:bg-gray-800"
               title="Sign out"
             >
@@ -73,7 +79,7 @@ export function Library({ podcasts, isAnonymous, onAddPodcast, onSelectPodcast }
         </div>
       </div>
 
-      {/* Sync modal for anonymous users */}
+      {/* Connect account modal for anonymous users */}
       {showSync && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-4">
           <div className="bg-gray-900 rounded-2xl w-full max-w-sm p-5">
@@ -85,8 +91,8 @@ export function Library({ podcasts, isAnonymous, onAddPodcast, onSelectPodcast }
               </div>
             ) : (
               <>
-                <h3 className="text-white font-bold text-lg mb-1">Sync across devices</h3>
-                <p className="text-gray-400 text-sm mb-4">Enter your email to link your library. We'll send a magic link — no password needed.</p>
+                <h3 className="text-white font-bold text-lg mb-1">Connect your account</h3>
+                <p className="text-gray-400 text-sm mb-4">Enter your email to sync your library across devices. We'll send a magic link — no password needed.</p>
                 <form onSubmit={handleLinkEmail} className="flex flex-col gap-3">
                   <input
                     type="email"
@@ -116,6 +122,30 @@ export function Library({ podcasts, isAnonymous, onAddPodcast, onSelectPodcast }
                 </form>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Sign out confirmation */}
+      {showSignOutConfirm && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-4">
+          <div className="bg-gray-900 rounded-2xl w-full max-w-sm p-5">
+            <h3 className="text-white font-bold text-lg mb-1">Sign out?</h3>
+            <p className="text-gray-400 text-sm mb-5">Your library will still be saved and you can sign back in with your email.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowSignOutConfirm(false)}
+                className="flex-1 py-3 rounded-xl bg-gray-800 text-white font-semibold text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => supabase.auth.signOut()}
+                className="flex-1 py-3 rounded-xl bg-red-600 text-white font-semibold text-sm"
+              >
+                Sign out
+              </button>
+            </div>
           </div>
         </div>
       )}

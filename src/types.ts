@@ -38,6 +38,7 @@ export interface PlayerState {
   currentTime: number;
   duration: number;
   isExpanded: boolean;
-  queue: QueueItem[];
-  queueIndex: number;
+  upNext: QueueItem[];   // manually added personal queue
+  feed: QueueItem[];     // auto-populated from subscriptions
+  feedIndex: number;     // current position in feed (-1 = not playing from feed)
 }

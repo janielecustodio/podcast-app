@@ -33,7 +33,6 @@ export default function App() {
         if (session) {
           setSession(session);
         } else {
-          // No session — sign in anonymously so the app works without email
           const { data } = await supabase.auth.signInAnonymously();
           setSession(data.session ?? null);
         }
@@ -47,8 +46,6 @@ export default function App() {
   }, []);
 
   if (session === undefined) return <div className="h-dvh bg-black" />;
-
-  // Anonymous auth disabled or failed — fall back to email login
   if (!session) return <Auth />;
 
   return <AuthenticatedApp session={session} />;
@@ -64,13 +61,14 @@ function AuthenticatedApp({ session }: { session: Session }) {
 
   const {
     state: player,
-    play,
-    playQueue,
+    playFromFeed,
+    playUpNextItem,
+    playFeedItem,
     playNext,
     playPrevious,
     addToQueue,
     removeFromQueue,
-    setQueue,
+    setFeed,
     togglePlay,
     seek,
     skip,
@@ -80,29 +78,25 @@ function AuthenticatedApp({ session }: { session: Session }) {
   const allEpisodes = Object.values(episodesByPodcast).flat();
   const podcastMap = Object.fromEntries(podcasts.map((p) => [p.id, p]));
 
-  // Populate default queue with recent episodes once episodes load
-  useEffect(() => {
-    if (allEpisodes.length === 0 || player.queue.length > 0) return;
-    const sorted = [...allEpisodes].sort((a, b) => b.publishedAt - a.publishedAt);
-    const items = sorted
-      .map((e) => ({ episode: e, podcast: podcastMap[e.podcastId] }))
-      .filter((item): item is QueueItem => Boolean(item.podcast));
-    setQueue(items);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allEpisodes.length]);
-
-  const buildFeedQueue = useCallback((): QueueItem[] => {
+  const buildAllEpisodeItems = useCallback((): QueueItem[] => {
     const sorted = [...allEpisodes].sort((a, b) => b.publishedAt - a.publishedAt);
     return sorted
       .map((e) => ({ episode: e, podcast: podcastMap[e.podcastId] }))
       .filter((item): item is QueueItem => Boolean(item.podcast));
   }, [allEpisodes, podcastMap]);
 
+  // Set default feed from all episodes when they first load
+  useEffect(() => {
+    if (allEpisodes.length === 0 || player.feed.length > 0) return;
+    setFeed(buildAllEpisodeItems());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allEpisodes.length]);
+
   const handlePlayFromFeed = useCallback((episode: Episode, podcast: Podcast) => {
-    const items = buildFeedQueue();
+    const items = buildAllEpisodeItems();
     const index = items.findIndex((item) => item.episode.id === episode.id);
-    playQueue(items, Math.max(0, index));
-  }, [buildFeedQueue, playQueue]);
+    playFromFeed(items, Math.max(0, index));
+  }, [buildAllEpisodeItems, playFromFeed]);
 
   const handlePlayFromPodcast = useCallback((episode: Episode) => {
     if (view.type !== 'podcast') return;
@@ -110,8 +104,8 @@ function AuthenticatedApp({ session }: { session: Session }) {
     const episodes = episodesByPodcast[pod.id] ?? [];
     const items = episodes.map((e) => ({ episode: e, podcast: pod }));
     const index = items.findIndex((item) => item.episode.id === episode.id);
-    playQueue(items, Math.max(0, index));
-  }, [view, episodesByPodcast, playQueue]);
+    playFromFeed(items, Math.max(0, index));
+  }, [view, episodesByPodcast, playFromFeed]);
 
   const handleAddToQueueFromFeed = useCallback((episode: Episode, podcast: Podcast) => {
     addToQueue(episode, podcast);
@@ -121,16 +115,6 @@ function AuthenticatedApp({ session }: { session: Session }) {
     if (view.type !== 'podcast') return;
     addToQueue(episode, view.podcast);
   }, [view, addToQueue]);
-
-  const handlePlayFromQueue = useCallback((index: number) => {
-    const item = player.queue[index];
-    if (item) play(item.episode, item.podcast);
-  }, [player.queue, play]);
-
-  const handleResetQueue = useCallback(() => {
-    const items = buildFeedQueue();
-    setQueue(items);
-  }, [buildFeedQueue, setQueue]);
 
   const handleSelectPodcast = useCallback(
     async (podcast: Podcast) => {
@@ -163,8 +147,8 @@ function AuthenticatedApp({ session }: { session: Session }) {
   };
 
   const showTabBar = view.type !== 'podcast';
-  const hasNext = player.queueIndex < player.queue.length - 1;
-  const hasPrevious = player.queueIndex > 0 || (player.currentTime > 3);
+  const hasNext = player.upNext.length > 0 || player.feedIndex < player.feed.length - 1;
+  const hasPrevious = player.feedIndex > 0 || player.currentTime > 3;
 
   return (
     <div className="flex flex-col h-dvh bg-black text-white overflow-hidden">
@@ -174,6 +158,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
           <Library
             podcasts={podcasts}
             isAnonymous={session.user.is_anonymous ?? false}
+            userEmail={session.user.email}
             onAddPodcast={() => setView({ type: 'add' })}
             onSelectPodcast={handleSelectPodcast}
           />
@@ -192,12 +177,13 @@ function AuthenticatedApp({ session }: { session: Session }) {
 
         {view.type === 'queue' && (
           <QueueView
-            queue={player.queue}
-            queueIndex={player.queueIndex}
+            upNext={player.upNext}
+            feed={player.feed}
+            feedIndex={player.feedIndex}
             currentEpisodeId={player.episode?.id ?? null}
-            onPlayItem={handlePlayFromQueue}
-            onRemoveItem={removeFromQueue}
-            onResetQueue={handleResetQueue}
+            onPlayUpNextItem={playUpNextItem}
+            onPlayFeedItem={playFeedItem}
+            onRemoveFromUpNext={removeFromQueue}
           />
         )}
 
@@ -228,15 +214,17 @@ function AuthenticatedApp({ session }: { session: Session }) {
           isExpanded={player.isExpanded}
           hasNext={hasNext}
           hasPrevious={hasPrevious}
-          queue={player.queue}
-          queueIndex={player.queueIndex}
+          upNext={player.upNext}
+          feed={player.feed}
+          feedIndex={player.feedIndex}
           onTogglePlay={togglePlay}
           onSeek={seek}
           onSkip={skip}
           onToggleExpanded={toggleExpanded}
           onPlayNext={playNext}
           onPlayPrevious={playPrevious}
-          onPlayQueueItem={handlePlayFromQueue}
+          onPlayUpNextItem={playUpNextItem}
+          onPlayFeedItem={playFeedItem}
         />
       )}
 

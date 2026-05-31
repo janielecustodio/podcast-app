@@ -27,26 +27,29 @@ interface Props {
   isExpanded: boolean;
   hasNext: boolean;
   hasPrevious: boolean;
-  queue: QueueItem[];
-  queueIndex: number;
+  upNext: QueueItem[];
+  feed: QueueItem[];
+  feedIndex: number;
   onTogglePlay: () => void;
   onSeek: (time: number) => void;
   onSkip: (seconds: number) => void;
   onToggleExpanded: () => void;
   onPlayNext: () => void;
   onPlayPrevious: () => void;
-  onPlayQueueItem: (index: number) => void;
+  onPlayUpNextItem: (index: number) => void;
+  onPlayFeedItem: (feedIndex: number) => void;
 }
 
 export function AudioPlayer({
   episode, podcast, isPlaying, currentTime, duration,
-  isExpanded, hasNext, hasPrevious, queue, queueIndex,
+  isExpanded, hasNext, hasPrevious, upNext, feed, feedIndex,
   onTogglePlay, onSeek, onSkip, onToggleExpanded,
-  onPlayNext, onPlayPrevious, onPlayQueueItem,
+  onPlayNext, onPlayPrevious, onPlayUpNextItem, onPlayFeedItem,
 }: Props) {
   const progress = duration > 0 ? currentTime / duration : 0;
   const artworkUrl = episode.artworkUrl || podcast.artworkUrl;
   const remaining = duration - currentTime;
+  const upcomingFeed = feed.slice(feedIndex + 1);
 
   if (isExpanded) {
     return (
@@ -133,37 +136,58 @@ export function AudioPlayer({
           </div>
         </div>
 
-        {/* ── Queue (always visible, scrollable) ── */}
+        {/* ── Queue (scrollable) ── */}
         <div className="flex-1 overflow-y-auto border-t border-gray-900">
+          {/* Up Next */}
           <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider px-4 pt-3 pb-1">
-            Queue · {queue.length} episodes
+            Up Next {upNext.length > 0 ? `· ${upNext.length}` : ''}
           </p>
-          {queue.length === 0 ? (
-            <p className="text-gray-700 text-sm text-center py-6">Queue is empty</p>
+          {upNext.length === 0 ? (
+            <p className="text-gray-700 text-sm px-4 pb-3">Nothing added yet.</p>
           ) : (
-            queue.map((item, index) => {
-              const isCurrent = index === queueIndex;
-              const isPast = index < queueIndex;
+            upNext.map((item, index) => {
               const art = item.episode.artworkUrl || item.podcast.artworkUrl;
               return (
                 <button
-                  key={`${item.episode.id}-${index}`}
-                  onClick={() => onPlayQueueItem(index)}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 border-b border-gray-900 active:bg-gray-900 text-left ${isCurrent ? 'bg-gray-950' : ''}`}
+                  key={`upnext-${item.episode.id}-${index}`}
+                  onClick={() => onPlayUpNextItem(index)}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 border-b border-gray-900 active:bg-gray-900 text-left"
                 >
-                  <img
-                    src={art}
-                    alt=""
-                    className={`w-10 h-10 rounded-xl object-cover flex-shrink-0 ${isPast ? 'opacity-30' : ''}`}
-                  />
+                  <img src={art} alt="" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium truncate ${isCurrent ? 'text-purple-400' : isPast ? 'text-gray-600' : 'text-white'}`}>
-                      {item.episode.title}
-                    </p>
+                    <p className="text-sm font-medium truncate text-white">{item.episode.title}</p>
                     <p className="text-gray-600 text-xs truncate">{item.podcast.title}</p>
                   </div>
-                  {isCurrent && <span className="text-purple-400 text-xs flex-shrink-0">▶</span>}
-                  {!isCurrent && item.episode.duration > 0 && (
+                  {item.episode.duration > 0 && (
+                    <span className="text-gray-700 text-xs flex-shrink-0">{formatDuration(item.episode.duration)}</span>
+                  )}
+                </button>
+              );
+            })
+          )}
+
+          {/* Feed */}
+          <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider px-4 pt-3 pb-1">
+            Feed {upcomingFeed.length > 0 ? `· ${upcomingFeed.length} remaining` : ''}
+          </p>
+          {upcomingFeed.length === 0 ? (
+            <p className="text-gray-700 text-sm px-4 pb-3">No more episodes.</p>
+          ) : (
+            upcomingFeed.map((item, i) => {
+              const actualFeedIdx = feedIndex + 1 + i;
+              const art = item.episode.artworkUrl || item.podcast.artworkUrl;
+              return (
+                <button
+                  key={`feed-${item.episode.id}-${actualFeedIdx}`}
+                  onClick={() => onPlayFeedItem(actualFeedIdx)}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 border-b border-gray-900 active:bg-gray-900 text-left"
+                >
+                  <img src={art} alt="" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate text-white">{item.episode.title}</p>
+                    <p className="text-gray-600 text-xs truncate">{item.podcast.title}</p>
+                  </div>
+                  {item.episode.duration > 0 && (
                     <span className="text-gray-700 text-xs flex-shrink-0">{formatDuration(item.episode.duration)}</span>
                   )}
                 </button>

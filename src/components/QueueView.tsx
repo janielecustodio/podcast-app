@@ -1,4 +1,4 @@
-import { X, RotateCcw } from 'lucide-react';
+import { X } from 'lucide-react';
 import type { QueueItem } from '../types';
 
 function formatDuration(seconds: number): string {
@@ -10,93 +10,119 @@ function formatDuration(seconds: number): string {
 }
 
 interface Props {
-  queue: QueueItem[];
-  queueIndex: number;
+  upNext: QueueItem[];
+  feed: QueueItem[];
+  feedIndex: number;
   currentEpisodeId: string | null;
-  onPlayItem: (index: number) => void;
-  onRemoveItem: (index: number) => void;
-  onResetQueue: () => void;
+  onPlayUpNextItem: (index: number) => void;
+  onPlayFeedItem: (feedIndex: number) => void;
+  onRemoveFromUpNext: (index: number) => void;
 }
 
-export function QueueView({ queue, queueIndex, currentEpisodeId, onPlayItem, onRemoveItem, onResetQueue }: Props) {
-  if (queue.length === 0) {
+function EpisodeRow({
+  item,
+  isCurrent,
+  onPlay,
+  onRemove,
+  label,
+}: {
+  item: QueueItem;
+  isCurrent?: boolean;
+  onPlay: () => void;
+  onRemove?: () => void;
+  label?: string;
+}) {
+  const artworkUrl = item.episode.artworkUrl || item.podcast.artworkUrl;
+  return (
+    <div className={`border-b border-gray-900 px-4 py-3 flex items-center gap-3 ${isCurrent ? 'bg-gray-950' : ''}`}>
+      <button onClick={onPlay} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+        <img src={artworkUrl} alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm font-semibold truncate leading-snug ${isCurrent ? 'text-purple-400' : 'text-white'}`}>
+            {item.episode.title}
+          </p>
+          <p className="text-gray-500 text-xs truncate">{item.podcast.title}</p>
+          {item.episode.duration > 0 && (
+            <p className="text-gray-700 text-xs mt-0.5">{formatDuration(item.episode.duration)}</p>
+          )}
+          {label && <p className="text-purple-600 text-xs mt-0.5">{label}</p>}
+        </div>
+      </button>
+      {isCurrent && <span className="text-purple-400 text-xs flex-shrink-0">▶</span>}
+      {onRemove && (
+        <button onClick={onRemove} className="text-gray-700 active:text-gray-400 flex-shrink-0 p-1">
+          <X size={16} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+export function QueueView({
+  upNext, feed, feedIndex, currentEpisodeId,
+  onPlayUpNextItem, onPlayFeedItem, onRemoveFromUpNext,
+}: Props) {
+  const upcomingFeed = feed.slice(feedIndex + 1);
+  const hasAnything = upNext.length > 0 || upcomingFeed.length > 0;
+
+  if (!currentEpisodeId && !hasAnything) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center px-8">
         <p className="text-white text-lg font-semibold mb-1">Queue is empty</p>
-        <p className="text-gray-500 text-sm">Play from the feed or add episodes using the <span className="text-gray-400">+</span> button</p>
+        <p className="text-gray-500 text-sm">Play from the feed or add episodes using the + button</p>
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="px-4 pt-6 pb-3 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Queue</h1>
-          <p className="text-gray-500 text-xs mt-0.5">{queue.length} episode{queue.length !== 1 ? 's' : ''}</p>
-        </div>
-        <button
-          onClick={onResetQueue}
-          className="flex items-center gap-1.5 text-gray-500 text-sm active:text-gray-300"
-        >
-          <RotateCcw size={14} />
-          Reset
-        </button>
+    <div className="pb-4">
+      <div className="px-4 pt-6 pb-3">
+        <h1 className="text-2xl font-bold text-white">Queue</h1>
       </div>
 
-      {queue.map((item, index) => {
-        const isCurrent = item.episode.id === currentEpisodeId;
-        const isUpNext = !isCurrent && index === queueIndex + 1;
-        const artworkUrl = item.episode.artworkUrl || item.podcast.artworkUrl;
+      {/* Up Next section */}
+      <div>
+        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider px-4 py-2">
+          Up Next {upNext.length > 0 ? `· ${upNext.length}` : ''}
+        </p>
+        {upNext.length === 0 ? (
+          <p className="text-gray-700 text-sm px-4 pb-3">
+            Nothing added — tap + on any episode to queue it.
+          </p>
+        ) : (
+          upNext.map((item, index) => (
+            <EpisodeRow
+              key={`upnext-${item.episode.id}-${index}`}
+              item={item}
+              onPlay={() => onPlayUpNextItem(index)}
+              onRemove={() => onRemoveFromUpNext(index)}
+              label={index === 0 ? 'Up next' : undefined}
+            />
+          ))
+        )}
+      </div>
 
-        return (
-          <div
-            key={`${item.episode.id}-${index}`}
-            className={`border-b border-gray-900 px-4 py-3 flex items-center gap-3 ${
-              isCurrent ? 'bg-gray-950' : ''
-            }`}
-          >
-            {/* Position indicator */}
-            <div className="w-5 flex-shrink-0 text-center">
-              {isCurrent ? (
-                <span className="text-purple-400 text-xs">▶</span>
-              ) : (
-                <span className="text-gray-700 text-xs">{index + 1}</span>
-              )}
-            </div>
-
-            <button
-              onClick={() => onPlayItem(index)}
-              className="flex items-center gap-3 flex-1 min-w-0 text-left"
-            >
-              <img
-                src={artworkUrl}
-                alt=""
-                className="w-12 h-12 rounded-xl object-cover flex-shrink-0"
+      {/* Feed section */}
+      <div className="mt-2">
+        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider px-4 py-2">
+          Feed {upcomingFeed.length > 0 ? `· ${upcomingFeed.length} remaining` : ''}
+        </p>
+        {upcomingFeed.length === 0 ? (
+          <p className="text-gray-700 text-sm px-4">No more episodes in feed.</p>
+        ) : (
+          upcomingFeed.map((item, i) => {
+            const actualFeedIdx = feedIndex + 1 + i;
+            return (
+              <EpisodeRow
+                key={`feed-${item.episode.id}-${actualFeedIdx}`}
+                item={item}
+                isCurrent={item.episode.id === currentEpisodeId}
+                onPlay={() => onPlayFeedItem(actualFeedIdx)}
               />
-              <div className="flex-1 min-w-0">
-                <p className={`text-sm font-semibold truncate leading-snug ${isCurrent ? 'text-purple-400' : 'text-white'}`}>
-                  {item.episode.title}
-                </p>
-                <p className="text-gray-500 text-xs truncate">{item.podcast.title}</p>
-                {item.episode.duration > 0 && (
-                  <p className="text-gray-700 text-xs mt-0.5">{formatDuration(item.episode.duration)}</p>
-                )}
-                {isUpNext && (
-                  <p className="text-purple-600 text-xs mt-0.5">Up next</p>
-                )}
-              </div>
-            </button>
-
-            <button
-              onClick={() => onRemoveItem(index)}
-              className="text-gray-700 active:text-gray-400 flex-shrink-0 p-1"
-            >
-              <X size={16} />
-            </button>
-          </div>
-        );
-      })}
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }

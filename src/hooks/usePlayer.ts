@@ -11,44 +11,38 @@ export function usePlayer() {
     currentTime: 0,
     duration: 0,
     isExpanded: false,
-    queue: [],
-    queueIndex: 0,
+    upNext: [],
+    feed: [],
+    feedIndex: -1,
   });
 
   const episodeRef = useRef<Episode | null>(null);
-  const queueRef = useRef<QueueItem[]>([]);
-  const queueIndexRef = useRef(0);
+  const upNextRef = useRef<QueueItem[]>([]);
+  const feedRef = useRef<QueueItem[]>([]);
+  const feedIndexRef = useRef(-1);
 
-  const playItem = useCallback(async (items: QueueItem[], index: number) => {
-    const item = items[index];
-    if (!item) return;
-
-    queueRef.current = items;
-    queueIndexRef.current = index;
-    episodeRef.current = item.episode;
-
+  // Play an episode immediately (does not touch upNext or feed structure)
+  const playEpisode = useCallback(async (episode: Episode, podcast: Podcast) => {
+    episodeRef.current = episode;
     setState((s) => ({
       ...s,
-      episode: item.episode,
-      podcast: item.podcast,
+      episode,
+      podcast,
       isPlaying: false,
       currentTime: 0,
       duration: 0,
-      queue: items,
-      queueIndex: index,
     }));
-
-    audio.src = item.episode.audioUrl;
-    const progress = await podcastDB.getProgress(item.episode.id);
+    audio.src = episode.audioUrl;
+    const progress = await podcastDB.getProgress(episode.id);
     if (progress && !progress.completed && progress.currentTime > 10) {
       audio.currentTime = progress.currentTime;
     }
     audio.play().catch(console.error);
   }, []);
 
-  // Keep a ref to the latest playItem so event handlers never go stale
-  const playItemRef = useRef(playItem);
-  useEffect(() => { playItemRef.current = playItem; }, [playItem]);
+  // Keep a ref so event handlers never go stale
+  const playEpisodeRef = useRef(playEpisode);
+  useEffect(() => { playEpisodeRef.current = playEpisode; }, [playEpisode]);
 
   // Wire up audio element events once
   useEffect(() => {
@@ -79,12 +73,23 @@ export function usePlayer() {
           lastPlayedAt: Date.now(),
         });
       }
-      // Auto-advance to next in queue
-      const nextIdx = queueIndexRef.current + 1;
-      if (nextIdx < queueRef.current.length) {
-        playItemRef.current(queueRef.current, nextIdx);
+      // Auto-advance: upNext first, then feed
+      const nextUpNext = [...upNextRef.current];
+      if (nextUpNext.length > 0) {
+        const next = nextUpNext.shift()!;
+        upNextRef.current = nextUpNext;
+        setState((s) => ({ ...s, upNext: nextUpNext }));
+        playEpisodeRef.current(next.episode, next.podcast);
       } else {
-        setState((s) => ({ ...s, isPlaying: false }));
+        const nextFeedIdx = feedIndexRef.current + 1;
+        if (nextFeedIdx < feedRef.current.length) {
+          feedIndexRef.current = nextFeedIdx;
+          const next = feedRef.current[nextFeedIdx];
+          setState((s) => ({ ...s, feedIndex: nextFeedIdx }));
+          playEpisodeRef.current(next.episode, next.podcast);
+        } else {
+          setState((s) => ({ ...s, isPlaying: false }));
+        }
       }
     };
 
@@ -120,66 +125,103 @@ export function usePlayer() {
     return () => clearInterval(id);
   }, [state.isPlaying, state.episode]);
 
-  // Play a single episode — if it's already in the queue, navigate there
+  // Play an episode — updates feedIndex if episode is in feed, preserves upNext
   const play = useCallback(async (episode: Episode, podcast: Podcast) => {
     if (episodeRef.current?.id === episode.id) {
       audio.play().catch(console.error);
       return;
     }
-    const existingIdx = queueRef.current.findIndex((q) => q.episode.id === episode.id);
-    if (existingIdx >= 0) {
-      await playItem(queueRef.current, existingIdx);
-      return;
+    const idx = feedRef.current.findIndex((q) => q.episode.id === episode.id);
+    if (idx >= 0) {
+      feedIndexRef.current = idx;
+      setState((s) => ({ ...s, feedIndex: idx }));
     }
-    await playItem([{ episode, podcast }], 0);
-  }, [playItem]);
+    await playEpisode(episode, podcast);
+  }, [playEpisode]);
 
-  // Play from a specific queue context (replaces queue)
-  const playQueue = useCallback(async (items: QueueItem[], index: number) => {
-    await playItem(items, index);
-  }, [playItem]);
+  // Set the feed and play from a specific index — preserves upNext
+  const playFromFeed = useCallback(async (items: QueueItem[], index: number) => {
+    feedRef.current = items;
+    feedIndexRef.current = index;
+    setState((s) => ({ ...s, feed: items, feedIndex: index }));
+    const item = items[index];
+    if (item) await playEpisode(item.episode, item.podcast);
+  }, [playEpisode]);
+
+  // Play a specific item from upNext by index
+  const playUpNextItem = useCallback(async (index: number) => {
+    const item = upNextRef.current[index];
+    if (!item) return;
+    const newUpNext = upNextRef.current.filter((_, i) => i !== index);
+    upNextRef.current = newUpNext;
+    setState((s) => ({ ...s, upNext: newUpNext }));
+    // Try to find the episode in feed and sync feedIndex
+    const feedIdx = feedRef.current.findIndex((q) => q.episode.id === item.episode.id);
+    if (feedIdx >= 0) {
+      feedIndexRef.current = feedIdx;
+      setState((s) => ({ ...s, feedIndex: feedIdx }));
+    }
+    await playEpisode(item.episode, item.podcast);
+  }, [playEpisode]);
+
+  // Play a specific item from feed by feedIndex
+  const playFeedItem = useCallback(async (index: number) => {
+    const item = feedRef.current[index];
+    if (!item) return;
+    feedIndexRef.current = index;
+    setState((s) => ({ ...s, feedIndex: index }));
+    await playEpisode(item.episode, item.podcast);
+  }, [playEpisode]);
 
   const playNext = useCallback(() => {
-    const nextIdx = queueIndexRef.current + 1;
-    if (nextIdx < queueRef.current.length) {
-      playItemRef.current(queueRef.current, nextIdx);
+    const nextUpNext = [...upNextRef.current];
+    if (nextUpNext.length > 0) {
+      const next = nextUpNext.shift()!;
+      upNextRef.current = nextUpNext;
+      setState((s) => ({ ...s, upNext: nextUpNext }));
+      playEpisodeRef.current(next.episode, next.podcast);
+    } else {
+      const nextFeedIdx = feedIndexRef.current + 1;
+      if (nextFeedIdx < feedRef.current.length) {
+        feedIndexRef.current = nextFeedIdx;
+        setState((s) => ({ ...s, feedIndex: nextFeedIdx }));
+        playEpisodeRef.current(feedRef.current[nextFeedIdx].episode, feedRef.current[nextFeedIdx].podcast);
+      }
     }
   }, []);
 
-  // If > 3s into episode: restart. Otherwise: go to previous.
   const playPrevious = useCallback(() => {
     if (audio.currentTime > 3) {
       audio.currentTime = 0;
       return;
     }
-    const prevIdx = queueIndexRef.current - 1;
-    if (prevIdx >= 0) {
-      playItemRef.current(queueRef.current, prevIdx);
+    const prevFeedIdx = feedIndexRef.current - 1;
+    if (prevFeedIdx >= 0) {
+      feedIndexRef.current = prevFeedIdx;
+      setState((s) => ({ ...s, feedIndex: prevFeedIdx }));
+      playEpisodeRef.current(feedRef.current[prevFeedIdx].episode, feedRef.current[prevFeedIdx].podcast);
+    } else {
+      audio.currentTime = 0;
     }
   }, []);
 
-  // Insert episode after current position in queue
+  // Add to end of personal queue
   const addToQueue = useCallback((episode: Episode, podcast: Podcast) => {
-    const newQueue = [...queueRef.current];
-    const insertAt = newQueue.length > 0 ? queueIndexRef.current + 1 : 0;
-    newQueue.splice(insertAt, 0, { episode, podcast });
-    queueRef.current = newQueue;
-    setState((s) => ({ ...s, queue: newQueue }));
+    const newUpNext = [...upNextRef.current, { episode, podcast }];
+    upNextRef.current = newUpNext;
+    setState((s) => ({ ...s, upNext: newUpNext }));
   }, []);
 
   const removeFromQueue = useCallback((index: number) => {
-    const newQueue = queueRef.current.filter((_, i) => i !== index);
-    let newIndex = queueIndexRef.current;
-    if (index < newIndex) newIndex -= 1;
-    newIndex = Math.max(0, Math.min(newIndex, newQueue.length - 1));
-    queueRef.current = newQueue;
-    queueIndexRef.current = newIndex;
-    setState((s) => ({ ...s, queue: newQueue, queueIndex: newIndex }));
+    const newUpNext = upNextRef.current.filter((_, i) => i !== index);
+    upNextRef.current = newUpNext;
+    setState((s) => ({ ...s, upNext: newUpNext }));
   }, []);
 
-  const setQueue = useCallback((items: QueueItem[]) => {
-    queueRef.current = items;
-    setState((s) => ({ ...s, queue: items }));
+  // Set the feed without changing playback or upNext
+  const setFeed = useCallback((items: QueueItem[]) => {
+    feedRef.current = items;
+    setState((s) => ({ ...s, feed: items }));
   }, []);
 
   const togglePlay = useCallback(() => {
@@ -206,12 +248,14 @@ export function usePlayer() {
   return {
     state,
     play,
-    playQueue,
+    playFromFeed,
+    playUpNextItem,
+    playFeedItem,
     playNext,
     playPrevious,
     addToQueue,
     removeFromQueue,
-    setQueue,
+    setFeed,
     togglePlay,
     seek,
     skip,
