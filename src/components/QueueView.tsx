@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, GripVertical, ListEnd, ListStart } from 'lucide-react';
+import { podcastDB } from '../db';
+import type { PlaybackProgress } from '../types';
 import {
   DndContext,
   closestCenter,
@@ -130,6 +132,15 @@ export function QueueView({
   onAddToQueueFirst, onAddToQueueLast,
 }: Props) {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [progress, setProgress] = useState<Record<string, PlaybackProgress>>({});
+
+  useEffect(() => {
+    podcastDB.getAllProgress().then((all) => {
+      const map: Record<string, PlaybackProgress> = {};
+      all.forEach((p) => { map[p.episodeId] = p; });
+      setProgress(map);
+    });
+  }, [feed, upNext]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -212,13 +223,30 @@ export function QueueView({
                   onClick={() => onPlayFeedItem(actualFeedIdx)}
                   className="flex items-center gap-3 flex-1 min-w-0 text-left"
                 >
-                  <img src={art} alt="" className="w-11 h-11 rounded-xl object-cover flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate text-white leading-snug">{item.episode.title}</p>
-                    <p className="text-gray-500 text-xs truncate">{item.podcast.title}</p>
-                    {item.episode.duration > 0 && (
-                      <p className="text-gray-700 text-xs mt-0.5">{formatDuration(item.episode.duration)}</p>
+                  <div className="relative flex-shrink-0">
+                    <img src={art} alt="" className={`w-11 h-11 rounded-xl object-cover ${progress[item.episode.id]?.completed ? 'opacity-40' : ''}`} />
+                    {progress[item.episode.id]?.completed && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-green-400 text-lg font-bold">✓</span>
+                      </div>
                     )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-semibold truncate leading-snug ${progress[item.episode.id]?.completed ? 'text-gray-600' : 'text-white'}`}>
+                      {item.episode.title}
+                    </p>
+                    <p className="text-gray-500 text-xs truncate">{item.podcast.title}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      {item.episode.duration > 0 && (
+                        <p className="text-gray-700 text-xs">{formatDuration(item.episode.duration)}</p>
+                      )}
+                      {progress[item.episode.id]?.completed && (
+                        <span className="text-green-700 text-xs">· Played</span>
+                      )}
+                      {!progress[item.episode.id]?.completed && progress[item.episode.id]?.currentTime > 10 && (
+                        <span className="text-purple-700 text-xs">· In progress</span>
+                      )}
+                    </div>
                   </div>
                 </button>
 
