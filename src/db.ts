@@ -77,7 +77,9 @@ export const podcastDB = {
   },
 
   async removePodcast(id: string): Promise<void> {
-    const { error } = await supabase.from('podcasts').delete().eq('id', id);
+    const userId = await getUserId();
+    if (!userId) return;
+    const { error } = await supabase.from('podcasts').delete().eq('id', id).eq('user_id', userId);
     if (error) { console.error('removePodcast:', error); return; }
     // Also remove cached episodes from IndexedDB
     const d = await getDB();

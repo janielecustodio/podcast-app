@@ -79,6 +79,13 @@ function AuthenticatedApp({ session }: { session: Session }) {
   const allEpisodes = Object.values(episodesByPodcast).flat();
   const podcastMap = Object.fromEntries(podcasts.map((p) => [p.id, p]));
 
+  // Sort podcasts by most recent episode (newest first), fall back to addedAt
+  const sortedPodcasts = [...podcasts].sort((a, b) => {
+    const aLatest = episodesByPodcast[a.id]?.[0]?.publishedAt ?? a.addedAt;
+    const bLatest = episodesByPodcast[b.id]?.[0]?.publishedAt ?? b.addedAt;
+    return bLatest - aLatest;
+  });
+
   const buildAllEpisodeItems = useCallback((): QueueItem[] => {
     const sorted = [...allEpisodes].sort((a, b) => b.publishedAt - a.publishedAt);
     return sorted
@@ -152,7 +159,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
       <div className="flex-1 overflow-y-auto">
         {view.type === 'library' && (
           <Library
-            podcasts={podcasts}
+            podcasts={sortedPodcasts}
             isAnonymous={session.user.is_anonymous ?? false}
             userEmail={session.user.email}
             onAddPodcast={() => setView({ type: 'add' })}

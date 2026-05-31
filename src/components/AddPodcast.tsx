@@ -1,12 +1,25 @@
 import { useState } from 'react';
-import { Search, X, Plus, Check } from 'lucide-react';
-import type { Podcast } from '../types';
-import { searchPodcasts } from '../api';
+import { Search, X, Plus, Check, ChevronLeft, Loader2 } from 'lucide-react';
+import type { Podcast, Episode } from '../types';
+import { searchPodcasts, fetchEpisodes } from '../api';
 
 interface Props {
   existingIds: Set<string>;
   onAdd: (podcast: Podcast) => void;
   onClose: () => void;
+}
+
+function formatDuration(seconds: number): string {
+  if (!seconds) return '';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+function formatDate(ts: number): string {
+  if (!ts) return '';
+  return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 export function AddPodcast({ existingIds, onAdd, onClose }: Props) {
@@ -15,6 +28,10 @@ export function AddPodcast({ existingIds, onAdd, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+
+  // Preview state
+  const [preview, setPreview] = useState<{ podcast: Podcast; episodes: Episode[] } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const search = async () => {
     if (!query.trim()) return;
@@ -35,6 +52,80 @@ export function AddPodcast({ existingIds, onAdd, onClose }: Props) {
     onAdd(podcast);
     setAddedIds((prev) => new Set(prev).add(podcast.id));
   };
+
+  const openPreview = async (podcast: Podcast) => {
+    setPreview({ podcast, episodes: [] });
+    setPreviewLoading(true);
+    try {
+      const eps = await fetchEpisodes(podcast);
+      setPreview({ podcast, episodes: eps.slice(0, 20) });
+    } catch {
+      setPreview({ podcast, episodes: [] });
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  // Episode preview sheet
+  if (preview) {
+    const isAdded = existingIds.has(preview.podcast.id) || addedIds.has(preview.podcast.id);
+    return (
+      <div className="fixed inset-0 bg-black z-50 flex flex-col">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-900 pt-safe">
+          <button onClick={() => setPreview(null)} className="p-1 -ml-1">
+            <ChevronLeft size={22} className="text-gray-400" />
+          </button>
+          <img
+            src={preview.podcast.artworkUrl}
+            alt={preview.podcast.title}
+            className="w-9 h-9 rounded-lg object-cover flex-shrink-0"
+          />
+          <div className="flex-1 min-w-0">
+            <p className="text-white text-sm font-semibold truncate">{preview.podcast.title}</p>
+            <p className="text-gray-500 text-xs truncate">{preview.podcast.author}</p>
+          </div>
+          <button
+            onClick={() => !isAdded && handleAdd(preview.podcast)}
+            className={`flex items-center gap-1.5 px-3 h-8 rounded-full text-xs font-semibold flex-shrink-0 transition-colors ${
+              isAdded ? 'bg-green-600 text-white' : 'bg-purple-600 text-white active:bg-purple-700'
+            }`}
+          >
+            {isAdded ? (
+              <><Check size={13} /> Added</>
+            ) : (
+              <><Plus size={13} /> Add</>
+            )}
+          </button>
+        </div>
+
+        {/* Episodes list */}
+        <div className="flex-1 overflow-y-auto">
+          {previewLoading && (
+            <div className="flex items-center justify-center h-32 text-gray-500 gap-2 text-sm">
+              <Loader2 size={16} className="animate-spin" /> Loading episodes…
+            </div>
+          )}
+          {!previewLoading && preview.episodes.length === 0 && (
+            <div className="p-4 text-gray-500 text-sm text-center">No episodes found.</div>
+          )}
+          {preview.episodes.map((ep) => (
+            <div key={ep.id} className="px-4 py-3 border-b border-gray-900">
+              <p className="text-white text-sm font-medium leading-snug line-clamp-2">{ep.title}</p>
+              <div className="flex items-center gap-2 mt-1">
+                {ep.publishedAt > 0 && (
+                  <span className="text-gray-500 text-xs">{formatDate(ep.publishedAt)}</span>
+                )}
+                {ep.duration > 0 && (
+                  <span className="text-gray-600 text-xs">{formatDuration(ep.duration)}</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
@@ -88,15 +179,21 @@ export function AddPodcast({ existingIds, onAdd, onClose }: Props) {
                   key={podcast.id}
                   className="flex items-center gap-3 px-4 py-3 border-b border-gray-900"
                 >
-                  <img
-                    src={podcast.artworkUrl}
-                    alt={podcast.title}
-                    className="w-14 h-14 rounded-xl object-cover flex-shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-semibold truncate">{podcast.title}</p>
-                    <p className="text-gray-500 text-xs truncate mt-0.5">{podcast.author}</p>
-                  </div>
+                  <button
+                    onClick={() => openPreview(podcast)}
+                    className="flex items-center gap-3 flex-1 min-w-0 text-left active:opacity-70"
+                  >
+                    <img
+                      src={podcast.artworkUrl}
+                      alt={podcast.title}
+                      className="w-14 h-14 rounded-xl object-cover flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-semibold truncate">{podcast.title}</p>
+                      <p className="text-gray-500 text-xs truncate mt-0.5">{podcast.author}</p>
+                      <p className="text-purple-500 text-xs mt-1">Tap to preview</p>
+                    </div>
+                  </button>
                   <button
                     onClick={() => !isAdded && handleAdd(podcast)}
                     className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${

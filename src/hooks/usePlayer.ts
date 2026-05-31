@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Episode, Podcast, PlayerState, QueueItem } from '../types';
 import { podcastDB } from '../db';
+import { supabase } from '../supabase';
 import { audio } from '../audio';
 
 const STORAGE_KEY = 'podcast-player-v1';
@@ -40,10 +41,15 @@ function loadFromStorage(): PersistedPlayer | null {
 }
 
 // Debounced Supabase save — at most once every 5s to avoid hammering the DB
+// Sets a flag so the Realtime subscription ignores our own writes.
 let supabaseSaveTimer: ReturnType<typeof setTimeout> | null = null;
+let justSavedLocally = false;
+
 function scheduleSaveToSupabase(p: PersistedPlayer) {
   if (supabaseSaveTimer) clearTimeout(supabaseSaveTimer);
   supabaseSaveTimer = setTimeout(() => {
+    justSavedLocally = true;
+    setTimeout(() => { justSavedLocally = false; }, 3_000); // reset flag after 3s
     podcastDB.savePlayerState({
       episode: p.episode,
       podcast: p.podcast,
@@ -86,6 +92,48 @@ export function usePlayer() {
     audio.load();
     const onMeta = () => { audio.currentTime = p.savedTime ?? 0; };
     audio.addEventListener('loadedmetadata', onMeta, { once: true });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Realtime subscription — apply remote changes from other devices
+  useEffect(() => {
+    const channel = supabase
+      .channel('player_state_changes')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'player_state' },
+        (payload) => {
+          if (justSavedLocally) return; // ignore echo from our own writes
+          const row = payload.new as {
+            episode_data: Episode | null;
+            podcast_data: Podcast | null;
+            saved_time: number;
+            up_next: QueueItem[];
+            feed_index: number;
+          };
+          if (!row.episode_data) return;
+          episodeRef.current = row.episode_data;
+          upNextRef.current = row.up_next ?? [];
+          feedIndexRef.current = row.feed_index ?? -1;
+          setState((s) => ({
+            ...s,
+            episode:     row.episode_data,
+            podcast:     row.podcast_data,
+            currentTime: row.saved_time ?? 0,
+            upNext:      row.up_next ?? [],
+            feedIndex:   row.feed_index ?? -1,
+          }));
+          // Update audio if episode changed
+          if (row.episode_data.audioUrl !== audio.src) {
+            audio.src = row.episode_data.audioUrl;
+            audio.load();
+            const onMeta = () => { audio.currentTime = row.saved_time ?? 0; };
+            audio.addEventListener('loadedmetadata', onMeta, { once: true });
+          }
+        },
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // On mount: load from Supabase — always wins over localStorage
