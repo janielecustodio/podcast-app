@@ -17,6 +17,8 @@ export function Library({ podcasts, isAnonymous, userEmail, onAddPodcast, onSele
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleLinkEmail = async (e: React.FormEvent) => {
@@ -36,6 +38,24 @@ export function Library({ podcasts, isAnonymous, userEmail, onAddPodcast, onSele
       setSent(true);
     }
     setLoading(false);
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otp.trim()) return;
+    setVerifying(true);
+    setError(null);
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email,
+      token: otp.trim(),
+      type: 'email',
+    });
+    if (verifyError) {
+      setError(verifyError.message);
+    } else {
+      setShowSync(false);
+    }
+    setVerifying(false);
   };
 
   return (
@@ -80,10 +100,39 @@ export function Library({ podcasts, isAnonymous, userEmail, onAddPodcast, onSele
         <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-4">
           <div className="bg-gray-900 rounded-2xl w-full max-w-sm p-5">
             {sent ? (
-              <div className="text-center py-2">
+              <div>
                 <p className="text-white font-semibold mb-1">Check your email</p>
-                <p className="text-gray-400 text-sm">Click the link we sent to <span className="text-gray-200">{email}</span> to sync your library across devices.</p>
-                <button onClick={() => setShowSync(false)} className="mt-4 text-purple-400 text-sm">Done</button>
+                <p className="text-gray-400 text-sm mb-4">
+                  We sent a code and a magic link to <span className="text-gray-200">{email}</span>.
+                </p>
+                <form onSubmit={handleVerify} className="flex flex-col gap-3">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="Enter 6-digit code"
+                    className="w-full bg-gray-800 text-white rounded-xl px-4 py-3 text-sm outline-none border border-gray-700 focus:border-purple-500 placeholder-gray-600 text-center tracking-widest text-lg"
+                  />
+                  {error && <p className="text-red-400 text-xs">{error}</p>}
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => { setSent(false); setOtp(''); setError(null); }}
+                      className="flex-1 py-3 rounded-xl bg-gray-800 text-white font-semibold text-sm"
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={verifying || otp.length < 6}
+                      className="flex-1 py-3 rounded-xl bg-purple-600 text-white font-semibold text-sm disabled:opacity-40"
+                    >
+                      {verifying ? 'Verifying…' : 'Verify code'}
+                    </button>
+                  </div>
+                </form>
               </div>
             ) : (
               <>

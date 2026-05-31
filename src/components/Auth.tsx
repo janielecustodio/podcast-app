@@ -5,6 +5,8 @@ export function Auth() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -15,7 +17,7 @@ export function Auth() {
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: 'https://janielecustodio.com/podcast-app/' },
     });
 
     if (error) {
@@ -24,6 +26,24 @@ export function Auth() {
       setSent(true);
     }
     setLoading(false);
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otp.trim()) return;
+    setVerifying(true);
+    setError(null);
+
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token: otp.trim(),
+      type: 'email',
+    });
+
+    if (error) {
+      setError(error.message);
+    }
+    setVerifying(false);
   };
 
   return (
@@ -47,17 +67,45 @@ export function Auth() {
         </p>
 
         {sent ? (
-          <div className="text-center">
-            <div className="w-14 h-14 rounded-full bg-green-900/40 flex items-center justify-center mx-auto mb-4">
-              <svg viewBox="0 0 24 24" className="w-7 h-7 stroke-green-400 fill-none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+          <div>
+            <div className="text-center mb-6">
+              <div className="w-14 h-14 rounded-full bg-green-900/40 flex items-center justify-center mx-auto mb-4">
+                <svg viewBox="0 0 24 24" className="w-7 h-7 stroke-green-400 fill-none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <p className="text-white font-semibold mb-1">Check your email</p>
+              <p className="text-gray-500 text-sm">
+                We sent a code and a magic link to{' '}
+                <span className="text-gray-300">{email}</span>.
+              </p>
             </div>
-            <p className="text-white font-semibold mb-1">Check your email</p>
-            <p className="text-gray-500 text-sm">
-              We sent a magic link to <span className="text-gray-300">{email}</span>.<br />
-              Click it to sign in — no password needed.
-            </p>
+            <form onSubmit={handleVerify} className="flex flex-col gap-3">
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="Enter 6-digit code"
+                className="w-full bg-gray-900 text-white rounded-xl px-4 py-3.5 text-sm outline-none border border-gray-800 focus:border-purple-500 transition-colors placeholder-gray-600 text-center tracking-widest text-lg"
+              />
+              {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+              <button
+                type="submit"
+                disabled={verifying || otp.length < 6}
+                className="w-full bg-purple-600 text-white rounded-xl py-3.5 text-sm font-semibold active:bg-purple-700 disabled:opacity-40 transition-opacity"
+              >
+                {verifying ? 'Verifying…' : 'Verify code'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setSent(false); setOtp(''); setError(null); }}
+                className="text-gray-600 text-xs text-center"
+              >
+                Use a different email
+              </button>
+            </form>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -79,7 +127,7 @@ export function Auth() {
               disabled={loading || !email}
               className="w-full bg-purple-600 text-white rounded-xl py-3.5 text-sm font-semibold active:bg-purple-700 disabled:opacity-40 transition-opacity"
             >
-              {loading ? 'Sending…' : 'Send magic link'}
+              {loading ? 'Sending…' : 'Send code'}
             </button>
           </form>
         )}
