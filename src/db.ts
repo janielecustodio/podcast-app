@@ -36,7 +36,7 @@ function rowToPodcast(row: Record<string, unknown>): Podcast {
 function rowToProgress(row: Record<string, unknown>): PlaybackProgress {
   return {
     episodeId: row.episode_id as string,
-    currentTime: row.current_time as number,
+    currentTime: row.playback_time as number,
     duration: row.duration as number,
     completed: row.completed as boolean,
     lastPlayedAt: row.last_played_at as number,
@@ -124,7 +124,7 @@ export const podcastDB = {
     const { error } = await supabase.from('progress').upsert({
       episode_id: progress.episodeId,
       user_id: userId,
-      current_time: progress.currentTime,
+      playback_time: progress.currentTime,
       duration: progress.duration,
       completed: progress.completed,
       last_played_at: progress.lastPlayedAt,
