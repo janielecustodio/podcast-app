@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, RefreshCw, Play, Pause, Trash2, ListEnd, ListStart } from 'lucide-react';
+import { ChevronLeft, RefreshCw, Play, Pause, Trash2 } from 'lucide-react';
+import { QueueActions } from './QueueList';
 import type { Episode, Podcast, PlaybackProgress } from '../types';
 import { podcastDB } from '../db';
 
@@ -46,7 +47,6 @@ export function PodcastDetail({
   const [progress, setProgress] = useState<Record<string, PlaybackProgress>>({});
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [expandedDescId, setExpandedDescId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -192,35 +192,11 @@ export function PodcastDetail({
                   )}
                 </div>
 
-                {/* Add to queue menu */}
-                <div className="relative flex-shrink-0 self-center">
-                  <button
-                    onClick={() => setMenuOpenId(menuOpenId === episode.id ? null : episode.id)}
-                    className="p-1 text-gray-600 active:text-purple-400"
-                  >
-                    <ListEnd size={18} />
-                  </button>
-                  {menuOpenId === episode.id && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setMenuOpenId(null)} />
-                      <div className="absolute right-0 top-7 z-50 bg-gray-800 rounded-xl shadow-xl overflow-hidden w-44 border border-gray-700">
-                        <button
-                          onClick={() => { onAddToQueueFirst(episode); setMenuOpenId(null); }}
-                          className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-white active:bg-gray-700 border-b border-gray-700"
-                        >
-                          <ListStart size={15} className="text-purple-400" />
-                          Play next
-                        </button>
-                        <button
-                          onClick={() => { onAddToQueueLast(episode); setMenuOpenId(null); }}
-                          className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-white active:bg-gray-700"
-                        >
-                          <ListEnd size={15} className="text-purple-400" />
-                          Add to queue
-                        </button>
-                      </div>
-                    </>
-                  )}
+                <div className="self-center">
+                  <QueueActions
+                    onAddFirst={() => onAddToQueueFirst(episode)}
+                    onAddLast={() => onAddToQueueLast(episode)}
+                  />
                 </div>
               </div>
             </div>

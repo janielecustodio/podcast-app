@@ -2,7 +2,7 @@
  * Shared queue list UI used by both QueueView (tab) and AudioPlayer (expanded).
  * Renders Up Next (drag-to-reorder) + Feed (unfinished, newest-first) sections.
  */
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { X, GripVertical, ListEnd, ListStart } from 'lucide-react';
 import {
   DndContext,
@@ -30,31 +30,27 @@ function formatDuration(seconds: number): string {
   return `${m}m`;
 }
 
-export function AddMenu({ onAddFirst, onAddLast, onClose }: {
+export function QueueActions({ onAddFirst, onAddLast }: {
   onAddFirst: () => void;
   onAddLast: () => void;
-  onClose: () => void;
 }) {
   return (
-    <>
-      <div className="fixed inset-0 z-[60]" onClick={onClose} />
-      <div className="absolute right-0 top-8 z-[70] bg-gray-800 rounded-xl shadow-xl overflow-hidden w-44 border border-gray-700">
-        <button
-          onClick={() => { onAddFirst(); onClose(); }}
-          className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-white active:bg-gray-700 border-b border-gray-700"
-        >
-          <ListStart size={15} className="text-purple-400" />
-          Play next
-        </button>
-        <button
-          onClick={() => { onAddLast(); onClose(); }}
-          className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-white active:bg-gray-700"
-        >
-          <ListEnd size={15} className="text-purple-400" />
-          Add to queue
-        </button>
-      </div>
-    </>
+    <div className="flex items-center gap-1 flex-shrink-0">
+      <button
+        onClick={onAddFirst}
+        title="Play next"
+        className="p-1.5 text-gray-600 active:text-purple-400"
+      >
+        <ListStart size={18} />
+      </button>
+      <button
+        onClick={onAddLast}
+        title="Add to queue"
+        className="p-1.5 text-gray-600 active:text-purple-400"
+      >
+        <ListEnd size={18} />
+      </button>
+    </div>
   );
 }
 
@@ -112,7 +108,6 @@ export function QueueList({
   onPlayUpNextItem, onPlayFeedItem, onRemoveFromUpNext, onReorderUpNext,
   onAddToQueueFirst, onAddToQueueLast,
 }: Props) {
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [progress, setProgress] = useState<Record<string, PlaybackProgress>>({});
 
   useEffect(() => {
@@ -179,13 +174,11 @@ export function QueueList({
         ) : (
           upcomingFeed.map(({ item, actualIdx }) => {
             const art = item.episode.artworkUrl || item.podcast.artworkUrl;
-            const menuId = item.episode.id + '-feed-' + actualIdx;
-            const isMenuOpen = menuOpenId === menuId;
             const prog = progress[item.episode.id];
 
             return (
               <div
-                key={menuId}
+                key={item.episode.id + '-feed-' + actualIdx}
                 className={`border-b border-gray-900 px-4 py-3 flex items-center gap-3 ${item.episode.id === currentEpisodeId ? 'bg-gray-950' : ''}`}
               >
                 <button
@@ -207,21 +200,10 @@ export function QueueList({
                   </div>
                 </button>
 
-                <div className="relative flex-shrink-0">
-                  <button
-                    onClick={() => setMenuOpenId(isMenuOpen ? null : menuId)}
-                    className="p-1.5 text-gray-600 active:text-purple-400"
-                  >
-                    <ListEnd size={18} />
-                  </button>
-                  {isMenuOpen && (
-                    <AddMenu
-                      onAddFirst={() => onAddToQueueFirst(item)}
-                      onAddLast={() => onAddToQueueLast(item)}
-                      onClose={() => setMenuOpenId(null)}
-                    />
-                  )}
-                </div>
+                <QueueActions
+                  onAddFirst={() => onAddToQueueFirst(item)}
+                  onAddLast={() => onAddToQueueLast(item)}
+                />
               </div>
             );
           })
