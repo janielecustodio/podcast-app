@@ -217,12 +217,15 @@ function AuthenticatedApp() {
           isExpanded={player.isExpanded}
           hasNext={hasNext}
           hasPrevious={hasPrevious}
+          queue={player.queue}
+          queueIndex={player.queueIndex}
           onTogglePlay={togglePlay}
           onSeek={seek}
           onSkip={skip}
           onToggleExpanded={toggleExpanded}
           onPlayNext={playNext}
           onPlayPrevious={playPrevious}
+          onPlayQueueItem={handlePlayFromQueue}
         />
       )}
 
