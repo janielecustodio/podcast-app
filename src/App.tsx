@@ -47,7 +47,7 @@ export default function App() {
   if (session === undefined) return <div className="h-dvh bg-black" />;
   if (!session) return <Auth />;
 
-  return <AuthenticatedApp session={session} />;
+  return <AuthenticatedApp key={session.user.id} session={session} />;
 }
 
 function AuthenticatedApp({ session }: { session: Session }) {
@@ -236,7 +236,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
         >
           <button
             onClick={() => switchTab('library')}
-            className={`flex-1 flex flex-col items-center py-3 gap-1 transition-colors ${
+            className={`flex-1 flex flex-col items-center py-3 gap-1 transition-colors touch-manipulation ${
               tab === 'library' ? 'text-purple-400' : 'text-gray-600'
             }`}
           >
@@ -245,7 +245,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
           </button>
           <button
             onClick={() => switchTab('queue')}
-            className={`flex-1 flex flex-col items-center py-3 gap-1 transition-colors ${
+            className={`flex-1 flex flex-col items-center py-3 gap-1 transition-colors touch-manipulation ${
               tab === 'queue' ? 'text-purple-400' : 'text-gray-600'
             }`}
           >
