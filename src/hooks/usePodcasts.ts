@@ -8,7 +8,8 @@ export function usePodcasts() {
   const [episodesByPodcast, setEpisodesByPodcast] = useState<Record<string, Episode[]>>({});
   const [loading, setLoading] = useState(true);
 
-  // Load everything from DB on mount
+  // Load everything from DB on mount, fetching from RSS for any podcast
+  // with fewer than 10 cached episodes (handles new devices / empty cache)
   useEffect(() => {
     async function init() {
       const pods = await podcastDB.getPodcasts();
@@ -17,7 +18,15 @@ export function usePodcasts() {
       const map: Record<string, Episode[]> = {};
       await Promise.all(
         pods.map(async (pod) => {
-          const eps = await podcastDB.getEpisodes(pod.id);
+          let eps = await podcastDB.getEpisodes(pod.id);
+          if (eps.length < 10) {
+            try {
+              eps = await fetchEpisodes(pod);
+              await podcastDB.saveEpisodes(eps);
+            } catch (e) {
+              console.error('Failed to fetch episodes for', pod.title, e);
+            }
+          }
           if (eps.length > 0) map[pod.id] = eps;
         }),
       );
