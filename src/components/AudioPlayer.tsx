@@ -150,10 +150,7 @@ export function AudioPlayer({
 
   // Mini player
   return (
-    <div
-      className="bg-gray-950 border-t border-gray-800 cursor-pointer active:bg-gray-900"
-      onClick={onToggleExpanded}
-    >
+    <div className="bg-gray-950 border-t border-gray-800">
       <div className="h-0.5 bg-gray-800">
         <div
           className="h-full bg-purple-500 transition-all duration-1000"
@@ -161,18 +158,23 @@ export function AudioPlayer({
         />
       </div>
       <div className="flex items-center gap-3 px-4 py-2.5">
-        <img src={artworkUrl} alt={episode.title} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-white text-sm font-medium truncate">{episode.title}</p>
-          <p className="text-gray-500 text-xs truncate">{podcast.title}</p>
-        </div>
-        <button onClick={(e) => { e.stopPropagation(); onTogglePlay(); }} className="p-2 active:opacity-70">
+        <button
+          onClick={onToggleExpanded}
+          className="flex items-center gap-3 flex-1 min-w-0 text-left active:opacity-70"
+        >
+          <img src={artworkUrl} alt={episode.title} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-white text-sm font-medium truncate">{episode.title}</p>
+            <p className="text-gray-500 text-xs truncate">{podcast.title}</p>
+          </div>
+        </button>
+        <button onClick={onTogglePlay} className="p-2 active:opacity-70">
           {isPlaying
             ? <Pause size={22} className="text-white fill-white" />
             : <Play size={22} className="text-white fill-white" />}
         </button>
         <button
-          onClick={(e) => { e.stopPropagation(); onPlayNext(); }}
+          onClick={onPlayNext}
           disabled={!hasNext}
           className={`p-2 ${hasNext ? 'active:opacity-70' : 'opacity-30'}`}
         >
