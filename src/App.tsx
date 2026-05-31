@@ -214,6 +214,10 @@ function AuthenticatedApp({ session }: { session: Session }) {
           onPlayPrevious={playPrevious}
           onPlayUpNextItem={playUpNextItem}
           onPlayFeedItem={playFeedItem}
+          onRemoveFromUpNext={removeFromQueue}
+          onReorderUpNext={reorderUpNext}
+          onAddToQueueFirst={(item) => addToQueueFirst(item.episode, item.podcast)}
+          onAddToQueueLast={(item) => addToQueue(item.episode, item.podcast)}
         />
       )}
 

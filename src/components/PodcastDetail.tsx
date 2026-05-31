@@ -47,6 +47,7 @@ export function PodcastDetail({
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [expandedDescId, setExpandedDescId] = useState<string | null>(null);
 
   useEffect(() => {
     if (episodes.length === 0) return;
@@ -164,11 +165,23 @@ export function PodcastDetail({
                       </>
                     )}
                   </div>
-                  {episode.description && (
-                    <p className="text-gray-500 text-xs mt-1.5 line-clamp-2 leading-relaxed">
-                      {stripHtml(episode.description)}
-                    </p>
-                  )}
+                  {episode.description && (() => {
+                    const text = stripHtml(episode.description);
+                    const isExpanded = expandedDescId === episode.id;
+                    return (
+                      <div className="mt-1.5">
+                        <p className={`text-gray-500 text-xs leading-relaxed ${isExpanded ? '' : 'line-clamp-2'}`}>
+                          {text}
+                        </p>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setExpandedDescId(isExpanded ? null : episode.id); }}
+                          className="text-purple-500 text-xs mt-0.5 active:opacity-70"
+                        >
+                          {isExpanded ? 'See less' : 'See more'}
+                        </button>
+                      </div>
+                    );
+                  })()}
                   {progressPct > 0 && !p?.completed && (
                     <div className="h-1 bg-gray-800 rounded-full mt-2">
                       <div
