@@ -56,13 +56,8 @@ describe('CORS proxy chain', () => {
   });
 
   it('falls through to allorigins JSON fallback when all raw proxies fail', async () => {
+    // 5 raw proxies fail, then JSON fallback succeeds on the 6th call
     const fetchMock = vi.fn()
-      .mockRejectedValue(new Error('blocked'))
-      // allorigins JSON fallback (6th call)
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ contents: '<rss fallback/>' }) });
-
-    // 5 raw proxies fail, then JSON fallback succeeds
-    fetchMock
       .mockRejectedValueOnce(new Error('blocked'))
       .mockRejectedValueOnce(new Error('blocked'))
       .mockRejectedValueOnce(new Error('blocked'))
