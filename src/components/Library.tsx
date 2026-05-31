@@ -23,19 +23,15 @@ export function Library({ podcasts, isAnonymous, userEmail, onAddPodcast, onSele
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const redirectTo = window.location.origin + '/podcast-app/';
-    const { error } = await supabase.auth.updateUser({ email }, { emailRedirectTo: redirectTo });
-    if (error) {
-      if (error.message.toLowerCase().includes('already')) {
-        const { error: otpError } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo } });
-        if (otpError) {
-          setError(otpError.message);
-        } else {
-          setSent(true);
-        }
-      } else {
-        setError(error.message);
-      }
+    const redirectTo = 'https://janielecustodio.com/podcast-app/';
+    // Always use signInWithOtp — it reliably passes emailRedirectTo.
+    // updateUser's emailRedirectTo is ignored by Supabase for magic links.
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: redirectTo },
+    });
+    if (otpError) {
+      setError(otpError.message);
     } else {
       setSent(true);
     }
