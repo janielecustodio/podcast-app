@@ -1,6 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import { BookOpen, Radio, ListMusic } from 'lucide-react';
+import type { Session } from '@supabase/supabase-js';
 import type { Podcast, Episode, QueueItem } from './types';
+import { supabase } from './supabase';
+import { Auth } from './components/Auth';
 import { usePodcasts } from './hooks/usePodcasts';
 import { usePlayer } from './hooks/usePlayer';
 import { Library } from './components/Library';
@@ -19,6 +22,29 @@ type View =
   | { type: 'add' };
 
 export default function App() {
+  const [session, setSession] = useState<Session | null | undefined>(undefined);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Still loading session
+  if (session === undefined) {
+    return <div className="h-dvh bg-black" />;
+  }
+
+  if (!session) {
+    return <Auth />;
+  }
+
+  return <AuthenticatedApp />;
+}
+
+function AuthenticatedApp() {
   const [tab, setTab] = useState<Tab>('library');
   const [view, setView] = useState<View>({ type: 'library' });
   const [loadingPodcastId, setLoadingPodcastId] = useState<string | null>(null);

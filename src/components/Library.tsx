@@ -1,5 +1,6 @@
-import { Plus } from 'lucide-react';
+import { Plus, LogOut } from 'lucide-react';
 import type { Podcast } from '../types';
+import { supabase } from '../supabase';
 
 interface Props {
   podcasts: Podcast[];
@@ -12,12 +13,21 @@ export function Library({ podcasts, onAddPodcast, onSelectPodcast }: Props) {
     <div className="p-4">
       <div className="flex items-center justify-between mb-6 pt-2">
         <h1 className="text-2xl font-bold text-white">Library</h1>
-        <button
-          onClick={onAddPodcast}
-          className="w-9 h-9 rounded-full bg-purple-600 flex items-center justify-center active:bg-purple-700"
-        >
-          <Plus size={20} className="text-white" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="w-9 h-9 rounded-full bg-gray-900 flex items-center justify-center active:bg-gray-800"
+            title="Sign out"
+          >
+            <LogOut size={16} className="text-gray-400" />
+          </button>
+          <button
+            onClick={onAddPodcast}
+            className="w-9 h-9 rounded-full bg-purple-600 flex items-center justify-center active:bg-purple-700"
+          >
+            <Plus size={20} className="text-white" />
+          </button>
+        </div>
       </div>
 
       {podcasts.length === 0 ? (
