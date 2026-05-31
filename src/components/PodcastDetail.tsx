@@ -5,6 +5,12 @@ import { podcastDB } from '../db';
 
 const DEFAULT_LIMIT = 30;
 
+function stripHtml(html: string): string {
+  if (!html) return '';
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  return doc.body.textContent?.trim() || '';
+}
+
 function formatDuration(seconds: number): string {
   if (!seconds) return '';
   const h = Math.floor(seconds / 3600);
@@ -156,6 +162,11 @@ export function PodcastDetail({
                       </>
                     )}
                   </div>
+                  {episode.description && (
+                    <p className="text-gray-500 text-xs mt-1.5 line-clamp-2 leading-relaxed">
+                      {stripHtml(episode.description)}
+                    </p>
+                  )}
                   {progressPct > 0 && !p?.completed && (
                     <div className="h-1 bg-gray-800 rounded-full mt-2">
                       <div

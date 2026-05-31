@@ -1,21 +1,32 @@
 import type { Podcast, Episode } from './types';
 
-const CORS_PROXIES = [
+const RAW_PROXIES = [
   'https://corsproxy.io/?url=',
-  'https://api.allorigins.win/raw?url=',
+  'https://thingproxy.freeboard.io/fetch/',
   'https://api.codetabs.com/v1/proxy?quest=',
+  'https://api.allorigins.win/raw?url=',
 ];
 
 async function fetchFeed(feedUrl: string): Promise<string> {
   const encoded = encodeURIComponent(feedUrl);
-  for (const proxy of CORS_PROXIES) {
+  const timeout = 8000;
+
+  for (const proxy of RAW_PROXIES) {
     try {
-      const res = await fetch(proxy + encoded);
+      const res = await fetch(proxy + encoded, { signal: AbortSignal.timeout(timeout) });
       if (res.ok) return res.text();
-    } catch {
-      // try next proxy
-    }
+    } catch { /* try next */ }
   }
+
+  // Fallback: allorigins JSON endpoint (wraps content in { contents: '...' })
+  try {
+    const res = await fetch(`https://api.allorigins.win/get?url=${encoded}`, { signal: AbortSignal.timeout(timeout) });
+    if (res.ok) {
+      const data = await res.json() as { contents?: string };
+      if (data.contents) return data.contents;
+    }
+  } catch { /* fall through */ }
+
   throw new Error('All proxies failed to fetch feed');
 }
 

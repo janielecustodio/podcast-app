@@ -3,6 +3,12 @@ import { Play, Pause, ListPlus } from 'lucide-react';
 import type { Episode, Podcast, PlaybackProgress } from '../types';
 import { podcastDB } from '../db';
 
+function stripHtml(html: string): string {
+  if (!html) return '';
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  return doc.body.textContent?.trim() || '';
+}
+
 function formatDuration(seconds: number): string {
   if (!seconds) return '';
   const h = Math.floor(seconds / 3600);
@@ -98,6 +104,11 @@ export function EpisodeFeed({ episodes, podcasts, currentEpisodeId, isPlaying, o
                     </>
                   )}
                 </div>
+                {episode.description && (
+                  <p className="text-gray-500 text-xs mt-1.5 line-clamp-2 leading-relaxed">
+                    {stripHtml(episode.description)}
+                  </p>
+                )}
                 {progressPct > 0 && !p?.completed && (
                   <div className="h-1 bg-gray-800 rounded-full mt-2">
                     <div
