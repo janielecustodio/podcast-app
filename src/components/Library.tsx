@@ -21,11 +21,12 @@ export function Library({ podcasts, isAnonymous, onAddPodcast, onSelectPodcast }
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.updateUser({ email });
+    const redirectTo = window.location.origin + '/podcast-app/';
+    const { error } = await supabase.auth.updateUser({ email }, { emailRedirectTo: redirectTo });
     if (error) {
       if (error.message.toLowerCase().includes('already')) {
         // Email already has an account — send a sign-in magic link instead
-        const { error: otpError } = await supabase.auth.signInWithOtp({ email });
+        const { error: otpError } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo } });
         if (otpError) {
           setError(otpError.message);
         } else {
