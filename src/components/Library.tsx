@@ -23,7 +23,17 @@ export function Library({ podcasts, isAnonymous, onAddPodcast, onSelectPodcast }
     setError(null);
     const { error } = await supabase.auth.updateUser({ email });
     if (error) {
-      setError(error.message);
+      if (error.message.toLowerCase().includes('already')) {
+        // Email already has an account — send a sign-in magic link instead
+        const { error: otpError } = await supabase.auth.signInWithOtp({ email });
+        if (otpError) {
+          setError(otpError.message);
+        } else {
+          setSent(true);
+        }
+      } else {
+        setError(error.message);
+      }
     } else {
       setSent(true);
     }
