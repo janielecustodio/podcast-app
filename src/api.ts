@@ -1,6 +1,6 @@
 import type { Podcast, Episode } from './types';
 
-const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+const CORS_PROXY = 'https://corsproxy.io/?url=';
 
 export async function searchPodcasts(query: string): Promise<Podcast[]> {
   const url = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=podcast&entity=podcast&limit=15`;
