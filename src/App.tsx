@@ -12,6 +12,7 @@ import { AddPodcast } from './components/AddPodcast';
 import { PodcastDetail } from './components/PodcastDetail';
 import { AudioPlayer } from './components/AudioPlayer';
 import { QueueView } from './components/QueueView';
+import { PullToRefresh } from './components/PullToRefresh';
 
 type Tab = 'library' | 'queue';
 type View =
@@ -55,7 +56,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
   const [view, setView] = useState<View>({ type: 'library' });
   const [loadingPodcastId, setLoadingPodcastId] = useState<string | null>(null);
 
-  const { podcasts, episodesByPodcast, addPodcast, removePodcast, loadEpisodes, refreshEpisodes } =
+  const { podcasts, episodesByPodcast, addPodcast, removePodcast, loadEpisodes, refreshEpisodes, refreshAll } =
     usePodcasts();
 
   const {
@@ -133,7 +134,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
   );
 
   const handleRefresh = useCallback(
-    async (podcast: Podcast) => {
+    async (podcast: Podcast): Promise<void> => {
       setLoadingPodcastId(podcast.id);
       try {
         await refreshEpisodes(podcast);
@@ -156,7 +157,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
   return (
     <div className="flex flex-col h-dvh bg-black text-white overflow-hidden">
       {/* Scrollable main content */}
-      <div className="flex-1 overflow-y-auto">
+      <PullToRefresh onRefresh={refreshAll} className="flex-1">
         {view.type === 'library' && (
           <Library
             podcasts={sortedPodcasts}
@@ -197,7 +198,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
             onRemove={(podcast) => removePodcast(podcast.id)}
           />
         )}
-      </div>
+      </PullToRefresh>
 
       {/* Mini / expanded audio player */}
       {player.episode && player.podcast && (

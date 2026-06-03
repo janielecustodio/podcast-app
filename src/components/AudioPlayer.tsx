@@ -1,6 +1,8 @@
-import { Play, Pause, SkipBack, SkipForward, ChevronDown, RotateCcw, RotateCw } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Play, Pause, SkipBack, SkipForward, ChevronDown, RotateCcw, Moon } from 'lucide-react';
 import type { Episode, Podcast, QueueItem } from '../types';
 import { QueueList } from './QueueList';
+import { audio } from '../audio';
 
 function formatTime(seconds: number): string {
   if (!seconds || !isFinite(seconds)) return '0:00';
@@ -9,6 +11,14 @@ function formatTime(seconds: number): string {
   const s = Math.floor(seconds % 60);
   if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function formatSleepRemaining(seconds: number): string {
+  if (seconds <= 0) return '';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.ceil((seconds % 3600) / 60);
+  if (h > 0) return `${h}h${m > 0 ? ` ${m}m` : ''}`;
+  return `${m}m`;
 }
 
 interface Props {
@@ -37,6 +47,13 @@ interface Props {
   onAddToQueueLast: (item: QueueItem) => void;
 }
 
+const SLEEP_OPTIONS = [
+  { label: 'End of episode', value: -1 },
+  { label: '60 min', value: 3600 },
+  { label: '45 min', value: 2700 },
+  { label: '30 min', value: 1800 },
+];
+
 export function AudioPlayer({
   episode, podcast, isPlaying, currentTime, duration,
   isExpanded, hasNext, hasPrevious, upNext, feed, feedIndex,
@@ -48,6 +65,52 @@ export function AudioPlayer({
   const progress = duration > 0 ? currentTime / duration : 0;
   const remaining = duration - currentTime;
 
+  // Sleep timer state
+  const [sleepSeconds, setSleepSeconds] = useState<number | null>(null); // null=off, -1=end of episode
+  const [showSleepMenu, setShowSleepMenu] = useState(false);
+  const sleepIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Countdown tick
+  useEffect(() => {
+    if (sleepSeconds === null || sleepSeconds === -1) {
+      if (sleepIntervalRef.current) { clearInterval(sleepIntervalRef.current); sleepIntervalRef.current = null; }
+      return;
+    }
+    sleepIntervalRef.current = setInterval(() => {
+      setSleepSeconds((s) => {
+        if (s === null || s <= 1) {
+          audio.pause();
+          return null;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => { if (sleepIntervalRef.current) clearInterval(sleepIntervalRef.current); };
+  }, [sleepSeconds !== null && sleepSeconds !== -1]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // End-of-episode sleep: pause when audio ends
+  useEffect(() => {
+    if (sleepSeconds !== -1) return;
+    const onEnded = () => { setSleepSeconds(null); };
+    audio.addEventListener('ended', onEnded);
+    return () => audio.removeEventListener('ended', onEnded);
+  }, [sleepSeconds]);
+
+  const selectSleep = (value: number) => {
+    if (sleepIntervalRef.current) { clearInterval(sleepIntervalRef.current); sleepIntervalRef.current = null; }
+    setSleepSeconds(value);
+    setShowSleepMenu(false);
+  };
+
+  const cancelSleep = () => {
+    if (sleepIntervalRef.current) { clearInterval(sleepIntervalRef.current); sleepIntervalRef.current = null; }
+    setSleepSeconds(null);
+    setShowSleepMenu(false);
+  };
+
+  const sleepActive = sleepSeconds !== null;
+  const sleepLabel = sleepSeconds === -1 ? 'end' : sleepSeconds !== null ? formatSleepRemaining(sleepSeconds) : null;
+
   if (isExpanded) {
     return (
       <div
@@ -56,13 +119,51 @@ export function AudioPlayer({
       >
         {/* ── Player controls (non-scrolling) ── */}
         <div className="flex-shrink-0 flex flex-col items-center px-6 pt-12 pb-5">
+          {/* Back button */}
           <button
             onClick={onToggleExpanded}
-            className="absolute top-4 left-4 p-2"
-            style={{ top: 'max(1rem, env(safe-area-inset-top))' }}
+            className="absolute p-2"
+            style={{ top: 'max(1rem, env(safe-area-inset-top))', left: '1rem' }}
           >
             <ChevronDown size={28} className="text-white" />
           </button>
+
+          {/* Sleep timer button — top right */}
+          <div
+            className="absolute flex flex-col items-center"
+            style={{ top: 'max(1rem, env(safe-area-inset-top))', right: '1rem' }}
+          >
+            <button
+              onClick={() => setShowSleepMenu((v) => !v)}
+              className={`p-2 flex flex-col items-center gap-0.5 ${sleepActive ? 'text-purple-400' : 'text-gray-500'} active:opacity-70`}
+            >
+              <Moon size={22} className={sleepActive ? 'fill-purple-400' : ''} />
+              {sleepLabel && <span className="text-xs leading-none">{sleepLabel}</span>}
+            </button>
+
+            {/* Sleep menu */}
+            {showSleepMenu && (
+              <div className="absolute top-10 right-0 bg-gray-900 rounded-2xl shadow-xl overflow-hidden w-44 z-10 border border-gray-800">
+                {SLEEP_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => selectSleep(opt.value)}
+                    className={`w-full text-left px-4 py-3 text-sm border-b border-gray-800 last:border-0 active:bg-gray-800 ${sleepSeconds === opt.value ? 'text-purple-400 font-semibold' : 'text-white'}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+                {sleepActive && (
+                  <button
+                    onClick={cancelSleep}
+                    className="w-full text-left px-4 py-3 text-sm text-red-400 active:bg-gray-800"
+                  >
+                    Cancel timer
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
 
           <img
             src={artworkUrl}

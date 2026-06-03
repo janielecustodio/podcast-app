@@ -81,5 +81,19 @@ export function usePodcasts() {
     return episodes;
   }, []);
 
-  return { podcasts, episodesByPodcast, loading, addPodcast, removePodcast, loadEpisodes, refreshEpisodes };
+  const refreshAll = useCallback(async () => {
+    await Promise.all(
+      podcasts.map(async (pod) => {
+        try {
+          const eps = await fetchEpisodes(pod);
+          await podcastDB.saveEpisodes(eps);
+          setEpisodesByPodcast((prev) => ({ ...prev, [pod.id]: eps }));
+        } catch (e) {
+          console.error('Failed to refresh', pod.title, e);
+        }
+      }),
+    );
+  }, [podcasts]);
+
+  return { podcasts, episodesByPodcast, loading, addPodcast, removePodcast, loadEpisodes, refreshEpisodes, refreshAll };
 }

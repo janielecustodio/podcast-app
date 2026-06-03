@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronLeft, RefreshCw, Play, Pause, Trash2 } from 'lucide-react';
 import { QueueActions } from './QueueList';
+import { PullToRefresh } from './PullToRefresh';
 import type { Episode, Podcast, PlaybackProgress } from '../types';
 import { podcastDB } from '../db';
 
@@ -36,7 +37,7 @@ interface Props {
   onPlayEpisode: (episode: Episode) => void;
   onAddToQueueFirst: (episode: Episode) => void;
   onAddToQueueLast: (episode: Episode) => void;
-  onRefresh: () => void;
+  onRefresh: () => Promise<void>;
   onRemove: (podcast: Podcast) => void;
 }
 
@@ -103,7 +104,7 @@ export function PodcastDetail({
       </div>
 
       {/* Episodes */}
-      <div className="flex-1 overflow-y-auto">
+      <PullToRefresh onRefresh={onRefresh} className="flex-1">
         {loading && episodes.length === 0 && (
           <div className="flex items-center justify-center h-32 text-gray-500 text-sm">
             Loading episodes...
@@ -214,7 +215,7 @@ export function PodcastDetail({
               : `Show ${hiddenCount} more episode${hiddenCount !== 1 ? 's' : ''}`}
           </button>
         )}
-      </div>
+      </PullToRefresh>
 
       {/* Remove confirmation dialog */}
       {confirmRemove && (
