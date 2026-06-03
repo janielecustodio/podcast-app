@@ -154,49 +154,15 @@ export function AudioPlayer({
               <span>-{formatTime(remaining > 0 ? remaining : 0)}</span>
             </div>
 
-            <div className="flex items-center justify-center gap-6">
-              <button
-                onClick={onPlayPrevious}
-                className={hasPrevious ? 'text-white opacity-80 active:opacity-100' : 'text-gray-700'}
-              >
-                <SkipBack size={24} />
-              </button>
-              <button
-                onClick={() => onSkip(-15)}
-                className="text-white opacity-80 active:opacity-100 flex flex-col items-center gap-1"
-              >
-                <RotateCcw size={24} />
-                <span className="text-xs text-gray-500">15</span>
-              </button>
-              <button
-                onClick={onTogglePlay}
-                className="w-14 h-14 rounded-full bg-white flex items-center justify-center active:bg-gray-200"
-              >
-                {isPlaying
-                  ? <Pause size={26} className="text-black fill-black" />
-                  : <Play size={26} className="text-black fill-black ml-1" />}
-              </button>
-              <button
-                onClick={() => onSkip(30)}
-                className="text-white opacity-80 active:opacity-100 flex flex-col items-center gap-1"
-              >
-                <RotateCcw size={24} style={{ transform: 'scaleX(-1)' }} />
-                <span className="text-xs text-gray-500">30</span>
-              </button>
-              <button
-                onClick={onPlayNext}
-                className={hasNext ? 'text-white opacity-80 active:opacity-100' : 'text-gray-700'}
-              >
-                <SkipForward size={24} />
-              </button>
-              {/* Sleep timer */}
-              <div className="relative flex flex-col items-center">
+            {/* Sleep timer row */}
+            <div className="flex justify-end mb-3 relative">
+              <div className="relative">
                 <button
                   onClick={() => setShowSleepMenu((v) => !v)}
-                  className={`flex flex-col items-center gap-0.5 active:opacity-70 ${sleepActive ? 'text-purple-400' : 'text-gray-600'}`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs active:opacity-70 ${sleepActive ? 'bg-purple-900/50 text-purple-400' : 'text-gray-600'}`}
                 >
-                  <Moon size={22} className={sleepActive ? 'fill-purple-400' : ''} />
-                  {sleepLabel && <span className="text-xs leading-none">{sleepLabel}</span>}
+                  <Moon size={14} className={sleepActive ? 'fill-purple-400' : ''} />
+                  {sleepLabel ? <span>{sleepLabel}</span> : <span>Sleep</span>}
                 </button>
                 {showSleepMenu && (
                   <div className="absolute bottom-8 right-0 bg-gray-900 rounded-2xl shadow-xl overflow-hidden w-44 z-10 border border-gray-800">
@@ -220,6 +186,43 @@ export function AudioPlayer({
                   </div>
                 )}
               </div>
+            </div>
+
+            <div className="flex items-center justify-center gap-7">
+              <button
+                onClick={onPlayPrevious}
+                className={hasPrevious ? 'text-white opacity-80 active:opacity-100' : 'text-gray-700'}
+              >
+                <SkipBack size={26} />
+              </button>
+              <button
+                onClick={() => onSkip(-15)}
+                className="text-white opacity-80 active:opacity-100 flex flex-col items-center gap-1"
+              >
+                <RotateCcw size={26} />
+                <span className="text-xs text-gray-500">15</span>
+              </button>
+              <button
+                onClick={onTogglePlay}
+                className="w-16 h-16 rounded-full bg-white flex items-center justify-center active:bg-gray-200"
+              >
+                {isPlaying
+                  ? <Pause size={28} className="text-black fill-black" />
+                  : <Play size={28} className="text-black fill-black ml-1" />}
+              </button>
+              <button
+                onClick={() => onSkip(30)}
+                className="text-white opacity-80 active:opacity-100 flex flex-col items-center gap-1"
+              >
+                <RotateCcw size={26} style={{ transform: 'scaleX(-1)' }} />
+                <span className="text-xs text-gray-500">30</span>
+              </button>
+              <button
+                onClick={onPlayNext}
+                className={hasNext ? 'text-white opacity-80 active:opacity-100' : 'text-gray-700'}
+              >
+                <SkipForward size={26} />
+              </button>
             </div>
           </div>
         </div>
