@@ -24,7 +24,7 @@ export function PullToRefresh({ onRefresh, children, className = '' }: Props) {
     el.style.opacity = String(ratio);
     const icon = el.querySelector('svg');
     if (icon) {
-      (icon as HTMLElement).style.transform = `rotate(${ratio * 180}deg)`;
+      (icon as unknown as HTMLElement).style.transform = `rotate(${ratio * 180}deg)`;
     }
   };
 
@@ -69,7 +69,7 @@ export function PullToRefresh({ onRefresh, children, className = '' }: Props) {
     el.style.height = '40px';
     el.style.opacity = '1';
     const icon = el.querySelector('svg');
-    if (icon) { (icon as HTMLElement).style.transform = ''; (icon as HTMLElement).className = 'animate-spin'; }
+    if (icon) { (icon as unknown as HTMLElement).style.transform = ''; icon.setAttribute('class', 'animate-spin'); }
 
     try {
       await onRefresh();
