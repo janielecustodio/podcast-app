@@ -134,11 +134,13 @@ export function QueueList({
     }
   }
 
-  // Upcoming feed: unfinished episodes only (feed is already sorted newest→oldest)
+  // Feed: all unread episodes newest→oldest, excluding currently playing
   const upcomingFeed = feed
-    .slice(feedIndex + 1)
-    .map((item, i) => ({ item, actualIdx: feedIndex + 1 + i }))
-    .filter(({ item }) => !progress[item.episode.id]?.completed);
+    .map((item, i) => ({ item, actualIdx: i }))
+    .filter(({ item, actualIdx }) =>
+      actualIdx !== feedIndex &&
+      !progress[item.episode.id]?.completed
+    );
 
   return (
     <>

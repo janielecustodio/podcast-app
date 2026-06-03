@@ -104,11 +104,20 @@ function AuthenticatedApp({ session }: { session: Session }) {
   const handlePlayFromPodcast = useCallback((episode: Episode) => {
     if (view.type !== 'podcast') return;
     const pod = view.podcast;
-    const episodes = episodesByPodcast[pod.id] ?? [];
-    const items = episodes.map((e) => ({ episode: e, podcast: pod }));
-    const index = items.findIndex((item) => item.episode.id === episode.id);
-    playFromFeed(items, Math.max(0, index));
-  }, [view, episodesByPodcast, playFromFeed]);
+    // Find the episode in the global all-episodes feed (preserves feed order)
+    const allItems = buildAllEpisodeItems();
+    const globalIndex = allItems.findIndex((item) => item.episode.id === episode.id);
+    if (globalIndex >= 0) {
+      // Episode is in the global feed — play from there, keeping feed intact
+      playFromFeed(allItems, globalIndex);
+    } else {
+      // Episode not in global feed (e.g. old cached episode) — fall back to podcast-only feed
+      const episodes = episodesByPodcast[pod.id] ?? [];
+      const items = episodes.map((e) => ({ episode: e, podcast: pod }));
+      const index = items.findIndex((item) => item.episode.id === episode.id);
+      playFromFeed(items, Math.max(0, index));
+    }
+  }, [view, episodesByPodcast, playFromFeed, buildAllEpisodeItems]);
 
   const handleAddToQueueFirstFromPodcast = useCallback((episode: Episode) => {
     if (view.type !== 'podcast') return;
