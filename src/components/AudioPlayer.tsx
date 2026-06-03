@@ -128,43 +128,6 @@ export function AudioPlayer({
             <ChevronDown size={28} className="text-white" />
           </button>
 
-          {/* Sleep timer button — top right */}
-          <div
-            className="absolute flex flex-col items-center"
-            style={{ top: 'max(1rem, env(safe-area-inset-top))', right: '1rem' }}
-          >
-            <button
-              onClick={() => setShowSleepMenu((v) => !v)}
-              className={`p-2 flex flex-col items-center gap-0.5 ${sleepActive ? 'text-purple-400' : 'text-gray-500'} active:opacity-70`}
-            >
-              <Moon size={22} className={sleepActive ? 'fill-purple-400' : ''} />
-              {sleepLabel && <span className="text-xs leading-none">{sleepLabel}</span>}
-            </button>
-
-            {/* Sleep menu */}
-            {showSleepMenu && (
-              <div className="absolute top-10 right-0 bg-gray-900 rounded-2xl shadow-xl overflow-hidden w-44 z-10 border border-gray-800">
-                {SLEEP_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => selectSleep(opt.value)}
-                    className={`w-full text-left px-4 py-3 text-sm border-b border-gray-800 last:border-0 active:bg-gray-800 ${sleepSeconds === opt.value ? 'text-purple-400 font-semibold' : 'text-white'}`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-                {sleepActive && (
-                  <button
-                    onClick={cancelSleep}
-                    className="w-full text-left px-4 py-3 text-sm text-red-400 active:bg-gray-800"
-                  >
-                    Cancel timer
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
           <img
             src={artworkUrl}
             alt={episode.title}
@@ -191,41 +154,72 @@ export function AudioPlayer({
               <span>-{formatTime(remaining > 0 ? remaining : 0)}</span>
             </div>
 
-            <div className="flex items-center justify-center gap-7">
+            <div className="flex items-center justify-center gap-6">
               <button
                 onClick={onPlayPrevious}
                 className={hasPrevious ? 'text-white opacity-80 active:opacity-100' : 'text-gray-700'}
               >
-                <SkipBack size={26} />
+                <SkipBack size={24} />
               </button>
               <button
                 onClick={() => onSkip(-15)}
                 className="text-white opacity-80 active:opacity-100 flex flex-col items-center gap-1"
               >
-                <RotateCcw size={26} />
+                <RotateCcw size={24} />
                 <span className="text-xs text-gray-500">15</span>
               </button>
               <button
                 onClick={onTogglePlay}
-                className="w-16 h-16 rounded-full bg-white flex items-center justify-center active:bg-gray-200"
+                className="w-14 h-14 rounded-full bg-white flex items-center justify-center active:bg-gray-200"
               >
                 {isPlaying
-                  ? <Pause size={28} className="text-black fill-black" />
-                  : <Play size={28} className="text-black fill-black ml-1" />}
+                  ? <Pause size={26} className="text-black fill-black" />
+                  : <Play size={26} className="text-black fill-black ml-1" />}
               </button>
               <button
                 onClick={() => onSkip(30)}
                 className="text-white opacity-80 active:opacity-100 flex flex-col items-center gap-1"
               >
-                <RotateCcw size={26} style={{ transform: 'scaleX(-1)' }} />
+                <RotateCcw size={24} style={{ transform: 'scaleX(-1)' }} />
                 <span className="text-xs text-gray-500">30</span>
               </button>
               <button
                 onClick={onPlayNext}
                 className={hasNext ? 'text-white opacity-80 active:opacity-100' : 'text-gray-700'}
               >
-                <SkipForward size={26} />
+                <SkipForward size={24} />
               </button>
+              {/* Sleep timer */}
+              <div className="relative flex flex-col items-center">
+                <button
+                  onClick={() => setShowSleepMenu((v) => !v)}
+                  className={`flex flex-col items-center gap-0.5 active:opacity-70 ${sleepActive ? 'text-purple-400' : 'text-gray-600'}`}
+                >
+                  <Moon size={22} className={sleepActive ? 'fill-purple-400' : ''} />
+                  {sleepLabel && <span className="text-xs leading-none">{sleepLabel}</span>}
+                </button>
+                {showSleepMenu && (
+                  <div className="absolute bottom-8 right-0 bg-gray-900 rounded-2xl shadow-xl overflow-hidden w-44 z-10 border border-gray-800">
+                    {SLEEP_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => selectSleep(opt.value)}
+                        className={`w-full text-left px-4 py-3 text-sm border-b border-gray-800 last:border-0 active:bg-gray-800 ${sleepSeconds === opt.value ? 'text-purple-400 font-semibold' : 'text-white'}`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                    {sleepActive && (
+                      <button
+                        onClick={cancelSleep}
+                        className="w-full text-left px-4 py-3 text-sm text-red-400 active:bg-gray-800"
+                      >
+                        Cancel timer
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -165,6 +165,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
             userEmail={session.user.email}
             onAddPodcast={() => setView({ type: 'add' })}
             onSelectPodcast={handleSelectPodcast}
+            onRefresh={refreshAll}
           />
         )}
 
@@ -180,6 +181,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
             onReorderUpNext={reorderUpNext}
             onAddToQueueFirst={(item) => addToQueueFirst(item.episode, item.podcast)}
             onAddToQueueLast={(item) => addToQueue(item.episode, item.podcast)}
+            onRefresh={refreshAll}
           />
         )}
 

@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import type { QueueItem } from '../types';
 import { QueueList } from './QueueList';
 
@@ -12,13 +14,15 @@ interface Props {
   onReorderUpNext: (from: number, to: number) => void;
   onAddToQueueFirst: (item: QueueItem) => void;
   onAddToQueueLast: (item: QueueItem) => void;
+  onRefresh: () => Promise<void>;
 }
 
 export function QueueView({
   upNext, feed, feedIndex, currentEpisodeId,
   onPlayUpNextItem, onPlayFeedItem, onRemoveFromUpNext, onReorderUpNext,
-  onAddToQueueFirst, onAddToQueueLast,
+  onAddToQueueFirst, onAddToQueueLast, onRefresh,
 }: Props) {
+  const [refreshing, setRefreshing] = useState(false);
   const hasAnything = upNext.length > 0 || feedIndex < feed.length - 1 || currentEpisodeId;
 
   if (!hasAnything) {
@@ -32,8 +36,16 @@ export function QueueView({
 
   return (
     <div className="pb-4">
-      <div className="px-4 pt-6 pb-3">
+      <div className="px-4 pt-6 pb-3 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">Queue</h1>
+        <button
+          onClick={async () => { setRefreshing(true); try { await onRefresh(); } finally { setRefreshing(false); } }}
+          disabled={refreshing}
+          className="w-9 h-9 rounded-full bg-gray-900 flex items-center justify-center active:bg-gray-800 disabled:opacity-50"
+          title="Refresh feed"
+        >
+          <RefreshCw size={15} className={`text-gray-400 ${refreshing ? 'animate-spin' : ''}`} />
+        </button>
       </div>
       <QueueList
         upNext={upNext}

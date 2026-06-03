@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, LogOut, UserPlus } from 'lucide-react';
+import { Plus, LogOut, UserPlus, RefreshCw } from 'lucide-react';
 import type { Podcast } from '../types';
 import { supabase } from '../supabase';
 
@@ -9,9 +9,11 @@ interface Props {
   userEmail?: string;
   onAddPodcast: () => void;
   onSelectPodcast: (podcast: Podcast) => void;
+  onRefresh: () => Promise<void>;
 }
 
-export function Library({ podcasts, isAnonymous, userEmail, onAddPodcast, onSelectPodcast }: Props) {
+export function Library({ podcasts, isAnonymous, userEmail, onAddPodcast, onSelectPodcast, onRefresh }: Props) {
+  const [refreshing, setRefreshing] = useState(false);
   const [showSync, setShowSync] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [email, setEmail] = useState('');
@@ -68,6 +70,14 @@ export function Library({ podcasts, isAnonymous, userEmail, onAddPodcast, onSele
           )}
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={async () => { setRefreshing(true); try { await onRefresh(); } finally { setRefreshing(false); } }}
+            disabled={refreshing}
+            className="w-9 h-9 rounded-full bg-gray-900 flex items-center justify-center active:bg-gray-800 disabled:opacity-50"
+            title="Refresh podcasts"
+          >
+            <RefreshCw size={15} className={`text-gray-400 ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
           {isAnonymous ? (
             <button
               onClick={() => setShowSync(true)}
