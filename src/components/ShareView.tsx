@@ -5,6 +5,24 @@ import { fetchEpisodesFromUrl } from '../api';
 import { audio } from '../audio';
 
 const APP_URL = 'https://janielecustodio.com/podcast-app/';
+const SHARE_PLAYER_KEY = 'share-player-state';
+
+interface SharePlayerState {
+  episodeId: string;
+  audioUrl: string;
+  currentTime: number;
+}
+
+function saveSharePlayerState(s: SharePlayerState) {
+  try { localStorage.setItem(SHARE_PLAYER_KEY, JSON.stringify(s)); } catch {}
+}
+
+function loadSharePlayerState(): SharePlayerState | null {
+  try {
+    const raw = localStorage.getItem(SHARE_PLAYER_KEY);
+    return raw ? (JSON.parse(raw) as SharePlayerState) : null;
+  } catch { return null; }
+}
 
 function formatDuration(seconds: number): string {
   if (!seconds) return '';
@@ -127,12 +145,24 @@ export function ShareView({ feedUrl, episodeGuid }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentEpisodeId, setCurrentEpisodeId] = useState<string | null>(null);
+  const currentEpisodeIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     fetchEpisodesFromUrl(feedUrl)
       .then(({ podcast, episodes }) => {
         setPodcast(podcast);
         setEpisodes(episodes);
+        // Restore saved player state after episodes load
+        const saved = loadSharePlayerState();
+        if (!saved) return;
+        const episode = episodes.find((e) => e.id === saved.episodeId);
+        if (!episode) return;
+        audio.src = saved.audioUrl;
+        audio.load();
+        audio.addEventListener('loadedmetadata', () => {
+          audio.currentTime = saved.currentTime;
+        }, { once: true });
+        setCurrentEpisodeId(episode.id);
       })
       .catch(() => setError('Failed to load podcast. The feed may be unavailable.'))
       .finally(() => setLoading(false));
@@ -140,7 +170,17 @@ export function ShareView({ feedUrl, episodeGuid }: Props) {
 
   useEffect(() => {
     const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
+    const onPause = () => {
+      setIsPlaying(false);
+      // Save on pause
+      if (audio.src && currentEpisodeIdRef.current) {
+        saveSharePlayerState({
+          episodeId: currentEpisodeIdRef.current,
+          audioUrl: audio.src,
+          currentTime: audio.currentTime,
+        });
+      }
+    };
     const onEnded = () => setIsPlaying(false);
     audio.addEventListener('play', onPlay);
     audio.addEventListener('pause', onPause);
@@ -151,6 +191,24 @@ export function ShareView({ feedUrl, episodeGuid }: Props) {
       audio.removeEventListener('ended', onEnded);
     };
   }, []);
+
+  // Keep ref in sync for use inside event handlers
+  useEffect(() => { currentEpisodeIdRef.current = currentEpisodeId; }, [currentEpisodeId]);
+
+  // Periodic save every 10s while playing
+  useEffect(() => {
+    if (!isPlaying || !currentEpisodeId) return;
+    const id = setInterval(() => {
+      if (audio.src && currentEpisodeIdRef.current) {
+        saveSharePlayerState({
+          episodeId: currentEpisodeIdRef.current,
+          audioUrl: audio.src,
+          currentTime: audio.currentTime,
+        });
+      }
+    }, 10_000);
+    return () => clearInterval(id);
+  }, [isPlaying, currentEpisodeId]);
 
   const currentEpisode = currentEpisodeId
     ? episodes.find((e) => e.id === currentEpisodeId) ?? null
@@ -166,6 +224,7 @@ export function ShareView({ feedUrl, episodeGuid }: Props) {
       audio.load();
       audio.play().catch(console.error);
       setCurrentEpisodeId(episode.id);
+      saveSharePlayerState({ episodeId: episode.id, audioUrl: episode.audioUrl, currentTime: 0 });
     }
   };
 
