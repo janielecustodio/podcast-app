@@ -65,6 +65,14 @@ export function AudioPlayer({
   const progress = duration > 0 ? currentTime / duration : 0;
   const remaining = duration - currentTime;
 
+  // Defer queue list rendering so the expanded overlay paints first
+  const [showQueue, setShowQueue] = useState(false);
+  useEffect(() => {
+    if (!isExpanded) { setShowQueue(false); return; }
+    const id = requestAnimationFrame(() => setShowQueue(true));
+    return () => cancelAnimationFrame(id);
+  }, [isExpanded]);
+
   // Sleep timer state
   const [sleepSeconds, setSleepSeconds] = useState<number | null>(null); // null=off, -1=end of episode
   const [showSleepMenu, setShowSleepMenu] = useState(false);
@@ -227,20 +235,22 @@ export function AudioPlayer({
           </div>
         </div>
 
-        {/* ── Queue (scrollable) ── */}
+        {/* ── Queue (scrollable, deferred one frame so controls paint first) ── */}
         <div className="flex-1 overflow-y-auto border-t border-gray-900">
-          <QueueList
-            upNext={upNext}
-            feed={feed}
-            feedIndex={feedIndex}
-            currentEpisodeId={episode.id}
-            onPlayUpNextItem={onPlayUpNextItem}
-            onPlayFeedItem={onPlayFeedItem}
-            onRemoveFromUpNext={onRemoveFromUpNext}
-            onReorderUpNext={onReorderUpNext}
-            onAddToQueueFirst={onAddToQueueFirst}
-            onAddToQueueLast={onAddToQueueLast}
-          />
+          {showQueue && (
+            <QueueList
+              upNext={upNext}
+              feed={feed}
+              feedIndex={feedIndex}
+              currentEpisodeId={episode.id}
+              onPlayUpNextItem={onPlayUpNextItem}
+              onPlayFeedItem={onPlayFeedItem}
+              onRemoveFromUpNext={onRemoveFromUpNext}
+              onReorderUpNext={onReorderUpNext}
+              onAddToQueueFirst={onAddToQueueFirst}
+              onAddToQueueLast={onAddToQueueLast}
+            />
+          )}
         </div>
       </div>
     );
