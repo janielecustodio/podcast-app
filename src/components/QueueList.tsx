@@ -111,11 +111,15 @@ export function QueueList({
   const [progress, setProgress] = useState<Record<string, PlaybackProgress>>({});
 
   useEffect(() => {
-    podcastDB.getAllProgress().then((all) => {
-      const map: Record<string, PlaybackProgress> = {};
-      all.forEach((p) => { map[p.episodeId] = p; });
-      setProgress(map);
+    // Defer past the current frame so the player opens instantly
+    const id = requestAnimationFrame(() => {
+      podcastDB.getAllProgress().then((all) => {
+        const map: Record<string, PlaybackProgress> = {};
+        all.forEach((p) => { map[p.episodeId] = p; });
+        setProgress(map);
+      });
     });
+    return () => cancelAnimationFrame(id);
   }, [feed, upNext]);
 
   const sensors = useSensors(

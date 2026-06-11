@@ -258,7 +258,7 @@ export function AudioPlayer({
       <div className="flex items-center gap-3 px-4 py-2.5">
         <button
           onClick={onToggleExpanded}
-          className="flex items-center gap-3 flex-1 min-w-0 text-left active:opacity-70"
+          className="flex items-center gap-3 flex-1 min-w-0 text-left active:opacity-70 touch-manipulation"
         >
           <img src={artworkUrl} alt={episode.title} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
           <div className="flex-1 min-w-0">
@@ -266,7 +266,7 @@ export function AudioPlayer({
             <p className="text-gray-500 text-xs truncate">{podcast.title}</p>
           </div>
         </button>
-        <button onClick={onTogglePlay} className="p-2 active:opacity-70">
+        <button onClick={onTogglePlay} className="p-2 active:opacity-70 touch-manipulation">
           {isPlaying
             ? <Pause size={22} className="text-white fill-white" />
             : <Play size={22} className="text-white fill-white" />}
@@ -274,7 +274,7 @@ export function AudioPlayer({
         <button
           onClick={onPlayNext}
           disabled={!hasNext}
-          className={`p-2 ${hasNext ? 'active:opacity-70' : 'opacity-30'}`}
+          className={`p-2 touch-manipulation ${hasNext ? 'active:opacity-70' : 'opacity-30'}`}
         >
           <SkipForward size={22} className="text-white" />
         </button>
