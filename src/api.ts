@@ -2,15 +2,13 @@ import type { Podcast, Episode } from './types';
 import { supabase } from './supabase';
 
 const APP_BASE = 'https://janielecustodio.com/podcast-app/';
-const SHARE_BASE = 'https://share.janielecustodio.com/';
-
 export async function createShareLink(feedUrl: string, episodeGuid?: string): Promise<string> {
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = Math.random().toString(36).slice(2, 8);
     const { error } = await supabase
       .from('share_links')
       .insert({ code, feed_url: feedUrl, episode_guid: episodeGuid ?? null });
-    if (!error) return `${SHARE_BASE}${code}`;
+    if (!error) return `${APP_BASE}?s=${code}`;
   }
   // Fallback to long URL if all attempts fail
   let url = `${APP_BASE}?podcast=${encodeURIComponent(feedUrl)}`;
