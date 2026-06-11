@@ -190,7 +190,9 @@ export function usePlayer() {
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Persist to localStorage + schedule Supabase save on structural changes
+  // Persist to localStorage + save to Supabase immediately on structural changes
+  // (episode/upNext/feedIndex — NOT time, which is handled by pause/periodic)
+  // Immediate save ensures a page refresh always finds the row in Supabase.
   useEffect(() => {
     if (!state.episode) return;
     const persisted: PersistedPlayer = {
@@ -202,8 +204,18 @@ export function usePlayer() {
       feedIndex: state.feedIndex,
     };
     saveToStorage(persisted);
-    scheduleSaveToSupabase(persisted);
-  }, [state.episode, state.podcast, state.upNext, state.feed, state.feedIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Cancel any pending debounced save and write immediately
+    if (supabaseSaveTimer) { clearTimeout(supabaseSaveTimer); supabaseSaveTimer = null; }
+    justSavedLocally = true;
+    setTimeout(() => { justSavedLocally = false; }, 3_000);
+    podcastDB.savePlayerState({
+      episode:   persisted.episode,
+      podcast:   persisted.podcast,
+      savedTime: persisted.savedTime,
+      upNext:    slim(persisted.upNext),
+      feedIndex: persisted.feedIndex,
+    });
+  }, [state.episode, state.podcast, state.upNext, state.feedIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Play an episode immediately (does not touch upNext or feed structure)
   const playEpisode = useCallback(async (episode: Episode, podcast: Podcast) => {
