@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { BookOpen, ListMusic } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import type { Podcast, Episode, QueueItem } from './types';
@@ -96,6 +96,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
   const [tab, setTab] = useState<Tab>('library');
   const [view, setView] = useState<View>({ type: 'library' });
   const [loadingPodcastId, setLoadingPodcastId] = useState<string | null>(null);
+  const restoredRef = useRef(false);
 
   const { podcasts, episodesByPodcast, addPodcast, removePodcast, loadEpisodes, refreshEpisodes, refreshAll } =
     usePodcasts();
@@ -173,6 +174,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
   const handleSelectPodcast = useCallback(
     async (podcast: Podcast) => {
       setView({ type: 'podcast', podcast });
+      sessionStorage.setItem('lastPodcastId', podcast.id);
       setLoadingPodcastId(podcast.id);
       try {
         await loadEpisodes(podcast);
@@ -182,6 +184,17 @@ function AuthenticatedApp({ session }: { session: Session }) {
     },
     [loadEpisodes],
   );
+
+  // Restore podcast view after page refresh
+  useEffect(() => {
+    if (restoredRef.current || podcasts.length === 0) return;
+    restoredRef.current = true;
+    const lastId = sessionStorage.getItem('lastPodcastId');
+    if (!lastId) return;
+    const podcast = podcasts.find((p) => p.id === lastId);
+    if (podcast) handleSelectPodcast(podcast);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [podcasts.length]);
 
   const handleRefresh = useCallback(
     async (podcast: Podcast): Promise<void> => {
@@ -196,6 +209,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
   );
 
   const switchTab = (newTab: Tab) => {
+    sessionStorage.removeItem('lastPodcastId');
     setTab(newTab);
     setView({ type: newTab });
   };
@@ -242,7 +256,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
             currentEpisodeId={player.episode?.id ?? null}
             isPlaying={player.isPlaying}
             loading={loadingPodcastId === view.podcast.id}
-            onBack={() => setView({ type: tab })}
+            onBack={() => { sessionStorage.removeItem('lastPodcastId'); setView({ type: tab }); }}
             onPlayEpisode={handlePlayFromPodcast}
             onAddToQueueFirst={handleAddToQueueFirstFromPodcast}
             onAddToQueueLast={handleAddToQueueLastFromPodcast}
