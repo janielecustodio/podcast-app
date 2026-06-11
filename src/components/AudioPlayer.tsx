@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Play, Pause, SkipBack, SkipForward, ChevronDown, RotateCcw, Moon } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, ChevronDown, RotateCcw, Moon, Loader2 } from 'lucide-react';
 import type { Episode, Podcast, QueueItem } from '../types';
 import { QueueList } from './QueueList';
 import { audio } from '../audio';
@@ -27,7 +27,6 @@ interface Props {
   isPlaying: boolean;
   currentTime: number;
   duration: number;
-  isExpanded: boolean;
   hasNext: boolean;
   hasPrevious: boolean;
   upNext: QueueItem[];
@@ -36,7 +35,6 @@ interface Props {
   onTogglePlay: () => void;
   onSeek: (time: number) => void;
   onSkip: (seconds: number) => void;
-  onToggleExpanded: () => void;
   onPlayNext: () => void;
   onPlayPrevious: () => void;
   onPlayUpNextItem: (index: number) => void;
@@ -56,11 +54,12 @@ const SLEEP_OPTIONS = [
 
 export function AudioPlayer({
   episode, podcast, isPlaying, currentTime, duration,
-  isExpanded, hasNext, hasPrevious, upNext, feed, feedIndex,
-  onTogglePlay, onSeek, onSkip, onToggleExpanded,
+  hasNext, hasPrevious, upNext, feed, feedIndex,
+  onTogglePlay, onSeek, onSkip,
   onPlayNext, onPlayPrevious, onPlayUpNextItem, onPlayFeedItem,
   onRemoveFromUpNext, onReorderUpNext, onAddToQueueFirst, onAddToQueueLast,
 }: Props) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const artworkUrl = episode.artworkUrl || podcast.artworkUrl;
   const progress = duration > 0 ? currentTime / duration : 0;
   const remaining = duration - currentTime;
@@ -129,7 +128,7 @@ export function AudioPlayer({
         <div className="flex-shrink-0 flex flex-col items-center px-6 pt-12 pb-5">
           {/* Back button */}
           <button
-            onClick={onToggleExpanded}
+            onClick={() => setIsExpanded(false)}
             className="absolute p-2"
             style={{ top: 'max(1rem, env(safe-area-inset-top))', left: '1rem' }}
           >
@@ -237,7 +236,7 @@ export function AudioPlayer({
 
         {/* ── Queue (scrollable, deferred one frame so controls paint first) ── */}
         <div className="flex-1 overflow-y-auto border-t border-gray-900">
-          {showQueue && (
+          {showQueue ? (
             <QueueList
               upNext={upNext}
               feed={feed}
@@ -250,6 +249,10 @@ export function AudioPlayer({
               onAddToQueueFirst={onAddToQueueFirst}
               onAddToQueueLast={onAddToQueueLast}
             />
+          ) : (
+            <div className="flex items-center justify-center h-24">
+              <Loader2 size={20} className="text-gray-700 animate-spin" />
+            </div>
           )}
         </div>
       </div>
@@ -267,7 +270,7 @@ export function AudioPlayer({
       </div>
       <div className="flex items-center gap-3 px-4 py-2.5">
         <button
-          onClick={onToggleExpanded}
+          onClick={() => setIsExpanded(true)}
           className="flex items-center gap-3 flex-1 min-w-0 text-left active:opacity-70 touch-manipulation"
         >
           <img src={artworkUrl} alt={episode.title} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />

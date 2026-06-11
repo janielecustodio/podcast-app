@@ -116,7 +116,6 @@ function AuthenticatedApp({ session }: { session: Session }) {
     togglePlay,
     seek,
     skip,
-    toggleExpanded,
   } = usePlayer();
 
   const allEpisodes = Object.values(episodesByPodcast).flat();
@@ -218,6 +217,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
   const hasNext = player.upNext.length > 0 || player.feedIndex < player.feed.length - 1;
   const hasPrevious = player.feedIndex > 0 || player.currentTime > 3;
 
+
   return (
     <div className="flex flex-col h-dvh bg-black text-white overflow-hidden">
       {/* Scrollable main content */}
@@ -274,7 +274,6 @@ function AuthenticatedApp({ session }: { session: Session }) {
           isPlaying={player.isPlaying}
           currentTime={player.currentTime}
           duration={player.duration}
-          isExpanded={player.isExpanded}
           hasNext={hasNext}
           hasPrevious={hasPrevious}
           upNext={player.upNext}
@@ -283,7 +282,6 @@ function AuthenticatedApp({ session }: { session: Session }) {
           onTogglePlay={togglePlay}
           onSeek={seek}
           onSkip={skip}
-          onToggleExpanded={toggleExpanded}
           onPlayNext={playNext}
           onPlayPrevious={playPrevious}
           onPlayUpNextItem={playUpNextItem}

@@ -74,7 +74,6 @@ export function usePlayer() {
     isPlaying:  false,
     currentTime: p?.savedTime ?? 0,
     duration:   0,
-    isExpanded: false,
     upNext:     p?.upNext     ?? [],
     feed:       p?.feed       ?? [],
     feedIndex:  p?.feedIndex  ?? -1,
@@ -468,10 +467,6 @@ export function usePlayer() {
     );
   }, []);
 
-  const toggleExpanded = useCallback(() => {
-    setState((s) => ({ ...s, isExpanded: !s.isExpanded }));
-  }, []);
-
   return {
     state,
     play,
@@ -488,6 +483,5 @@ export function usePlayer() {
     togglePlay,
     seek,
     skip,
-    toggleExpanded,
   };
 }
