@@ -1,11 +1,19 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, RefreshCw, Play, Pause, Trash2 } from 'lucide-react';
+import { ChevronLeft, RefreshCw, Play, Pause, Trash2, Share2 } from 'lucide-react';
 import { QueueActions } from './QueueList';
 import { PullToRefresh } from './PullToRefresh';
 import type { Episode, Podcast, PlaybackProgress } from '../types';
 import { podcastDB } from '../db';
 
+const APP_URL = 'https://janielecustodio.com/podcast-app/';
 const DEFAULT_LIMIT = 30;
+
+async function shareUrl(url: string, title: string) {
+  if (navigator.share) {
+    try { await navigator.share({ title, url }); return; } catch { /* fall through */ }
+  }
+  await navigator.clipboard.writeText(url);
+}
 
 function stripHtml(html: string): string {
   if (!html) return '';
@@ -49,6 +57,13 @@ export function PodcastDetail({
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [expandedDescId, setExpandedDescId] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null); // episodeId or 'podcast'
+
+  const handleShare = async (url: string, title: string, key: string) => {
+    await shareUrl(url, title);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+  };
 
   useEffect(() => {
     if (episodes.length === 0) return;
@@ -87,6 +102,16 @@ export function PodcastDetail({
             className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center"
           >
             <RefreshCw size={14} className={`text-white ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            onClick={() => handleShare(
+              `${APP_URL}?podcast=${encodeURIComponent(podcast.feedUrl)}`,
+              podcast.title,
+              'podcast',
+            )}
+            className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center"
+          >
+            <Share2 size={14} className={copied === 'podcast' ? 'text-purple-400' : 'text-white'} />
           </button>
           <button
             onClick={() => setConfirmRemove(true)}
@@ -193,7 +218,18 @@ export function PodcastDetail({
                   )}
                 </div>
 
-                <div className="self-center">
+                <div className="self-center flex items-center gap-1">
+                  <button
+                    onClick={() => handleShare(
+                      `${APP_URL}?podcast=${encodeURIComponent(podcast.feedUrl)}&episode=${encodeURIComponent(episode.id.split('::')[1] ?? episode.id)}`,
+                      episode.title,
+                      episode.id,
+                    )}
+                    className="p-1.5 text-gray-600 active:text-purple-400"
+                    title="Share episode"
+                  >
+                    <Share2 size={15} className={copied === episode.id ? 'text-purple-400' : ''} />
+                  </button>
                   <QueueActions
                     onAddFirst={() => onAddToQueueFirst(episode)}
                     onAddLast={() => onAddToQueueLast(episode)}

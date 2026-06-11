@@ -75,6 +75,31 @@ function getItunesAttr(el: Element, localName: string, attr: string): string | n
   return withNs?.getAttribute(attr) ?? null;
 }
 
+export async function fetchEpisodesFromUrl(feedUrl: string): Promise<{ podcast: Podcast; episodes: Episode[] }> {
+  const text = await fetchFeed(feedUrl);
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(text, 'text/xml');
+  const channel = doc.querySelector('channel');
+  const title = channel?.querySelector('title')?.textContent?.trim() || 'Podcast';
+  const author = channel?.querySelector('itunes\\:author')?.textContent?.trim()
+    || doc.getElementsByTagNameNS('http://www.itunes.com/dtds/podcast-1.0.dtd', 'author')[0]?.textContent?.trim()
+    || '';
+  const artworkUrl = doc.getElementsByTagNameNS('http://www.itunes.com/dtds/podcast-1.0.dtd', 'image')[0]?.getAttribute('href')
+    || channel?.querySelector('image url')?.textContent?.trim()
+    || '';
+
+  const podcast: Podcast = {
+    id: encodeURIComponent(feedUrl),
+    title,
+    author,
+    artworkUrl,
+    feedUrl,
+    addedAt: Date.now(),
+  };
+  const episodes = await fetchEpisodes(podcast);
+  return { podcast, episodes };
+}
+
 export async function fetchEpisodes(podcast: Podcast): Promise<Episode[]> {
   const text = await fetchFeed(podcast.feedUrl);
 

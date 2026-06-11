@@ -13,6 +13,7 @@ import { PodcastDetail } from './components/PodcastDetail';
 import { AudioPlayer } from './components/AudioPlayer';
 import { QueueView } from './components/QueueView';
 import { PullToRefresh } from './components/PullToRefresh';
+import { ShareView } from './components/ShareView';
 
 type Tab = 'library' | 'queue';
 type View =
@@ -22,6 +23,14 @@ type View =
   | { type: 'add' };
 
 export default function App() {
+  // Handle public share links — render before auth check, no login required
+  const shareParams = new URLSearchParams(window.location.search);
+  const shareFeedUrl = shareParams.get('podcast');
+  const shareEpisodeGuid = shareParams.get('episode');
+  if (shareFeedUrl) {
+    return <ShareView feedUrl={shareFeedUrl} episodeGuid={shareEpisodeGuid} />;
+  }
+
   const [session, setSession] = useState<Session | null | undefined>(undefined);
 
   useEffect(() => {
