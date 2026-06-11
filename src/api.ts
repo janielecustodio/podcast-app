@@ -8,7 +8,7 @@ export async function createShareLink(feedUrl: string, episodeGuid?: string): Pr
     const { error } = await supabase
       .from('share_links')
       .insert({ code, feed_url: feedUrl, episode_guid: episodeGuid ?? null });
-    if (!error) return `${APP_BASE}?s=${code}`;
+    if (!error) return `https://podcast-proxy.janielecustodio.workers.dev/${code}`;
   }
   // Fallback to long URL if all attempts fail
   let url = `${APP_BASE}?podcast=${encodeURIComponent(feedUrl)}`;
