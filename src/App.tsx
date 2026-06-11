@@ -15,6 +15,38 @@ import { QueueView } from './components/QueueView';
 import { PullToRefresh } from './components/PullToRefresh';
 import { ShareView } from './components/ShareView';
 
+const APP_URL = 'https://janielecustodio.com/podcast-app/';
+
+function ShareResolver({ code }: { code: string }) {
+  const [state, setState] = useState<
+    | { status: 'loading' }
+    | { status: 'ok'; feedUrl: string; episodeGuid: string | null }
+    | { status: 'error' }
+  >({ status: 'loading' });
+
+  useEffect(() => {
+    supabase
+      .from('share_links')
+      .select('feed_url, episode_guid')
+      .eq('code', code)
+      .single()
+      .then(({ data, error }) => {
+        if (error || !data) setState({ status: 'error' });
+        else setState({ status: 'ok', feedUrl: data.feed_url, episodeGuid: data.episode_guid ?? null });
+      });
+  }, [code]);
+
+  if (state.status === 'loading') return <div className="h-dvh bg-black" />;
+  if (state.status === 'error') return (
+    <div className="h-dvh bg-black flex flex-col items-center justify-center gap-4 px-8 text-center">
+      <p className="text-white font-semibold">Link not found</p>
+      <p className="text-gray-500 text-sm">This share link may have expired or been removed.</p>
+      <a href={APP_URL} className="text-purple-400 text-sm">Open app</a>
+    </div>
+  );
+  return <ShareView feedUrl={state.feedUrl} episodeGuid={state.episodeGuid} />;
+}
+
 type Tab = 'library' | 'queue';
 type View =
   | { type: 'library' }
@@ -25,11 +57,11 @@ type View =
 export default function App() {
   // Handle public share links — render before auth check, no login required
   const shareParams = new URLSearchParams(window.location.search);
+  const shareCode = shareParams.get('s');
   const shareFeedUrl = shareParams.get('podcast');
   const shareEpisodeGuid = shareParams.get('episode');
-  if (shareFeedUrl) {
-    return <ShareView feedUrl={shareFeedUrl} episodeGuid={shareEpisodeGuid} />;
-  }
+  if (shareCode) return <ShareResolver code={shareCode} />;
+  if (shareFeedUrl) return <ShareView feedUrl={shareFeedUrl} episodeGuid={shareEpisodeGuid} />;
 
   const [session, setSession] = useState<Session | null | undefined>(undefined);
 

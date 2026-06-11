@@ -4,8 +4,8 @@ import { QueueActions } from './QueueList';
 import { PullToRefresh } from './PullToRefresh';
 import type { Episode, Podcast, PlaybackProgress } from '../types';
 import { podcastDB } from '../db';
+import { createShareLink } from '../api';
 
-const APP_URL = 'https://janielecustodio.com/podcast-app/';
 const DEFAULT_LIMIT = 30;
 
 async function shareUrl(url: string, title: string) {
@@ -57,12 +57,19 @@ export function PodcastDetail({
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [expandedDescId, setExpandedDescId] = useState<string | null>(null);
-  const [copied, setCopied] = useState<string | null>(null); // episodeId or 'podcast'
+  const [sharing, setSharing] = useState<string | null>(null);  // key being generated
+  const [copied, setCopied] = useState<string | null>(null);    // key just shared
 
-  const handleShare = async (url: string, title: string, key: string) => {
-    await shareUrl(url, title);
-    setCopied(key);
-    setTimeout(() => setCopied(null), 2000);
+  const handleShare = async (feedUrl: string, episodeGuid: string | undefined, title: string, key: string) => {
+    setSharing(key);
+    try {
+      const url = await createShareLink(feedUrl, episodeGuid);
+      await shareUrl(url, title);
+      setCopied(key);
+      setTimeout(() => setCopied(null), 2000);
+    } finally {
+      setSharing(null);
+    }
   };
 
   useEffect(() => {
@@ -104,14 +111,11 @@ export function PodcastDetail({
             <RefreshCw size={14} className={`text-white ${loading ? 'animate-spin' : ''}`} />
           </button>
           <button
-            onClick={() => handleShare(
-              `${APP_URL}?podcast=${encodeURIComponent(podcast.feedUrl)}`,
-              podcast.title,
-              'podcast',
-            )}
+            onClick={() => handleShare(podcast.feedUrl, undefined, podcast.title, 'podcast')}
             className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center"
+            disabled={sharing === 'podcast'}
           >
-            <Share2 size={14} className={copied === 'podcast' ? 'text-purple-400' : 'text-white'} />
+            <Share2 size={14} className={copied === 'podcast' ? 'text-purple-400' : sharing === 'podcast' ? 'text-gray-500' : 'text-white'} />
           </button>
           <button
             onClick={() => setConfirmRemove(true)}
@@ -221,14 +225,16 @@ export function PodcastDetail({
                 <div className="self-center flex items-center gap-1">
                   <button
                     onClick={() => handleShare(
-                      `${APP_URL}?podcast=${encodeURIComponent(podcast.feedUrl)}&episode=${encodeURIComponent(episode.id.split('::')[1] ?? episode.id)}`,
+                      podcast.feedUrl,
+                      episode.id.split('::')[1] ?? episode.id,
                       episode.title,
                       episode.id,
                     )}
                     className="p-1.5 text-gray-600 active:text-purple-400"
                     title="Share episode"
+                    disabled={sharing === episode.id}
                   >
-                    <Share2 size={15} className={copied === episode.id ? 'text-purple-400' : ''} />
+                    <Share2 size={15} className={copied === episode.id ? 'text-purple-400' : sharing === episode.id ? 'text-gray-500' : ''} />
                   </button>
                   <QueueActions
                     onAddFirst={() => onAddToQueueFirst(episode)}
